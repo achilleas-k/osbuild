@@ -1,0 +1,48 @@
+{
+  "version": "2",
+  "pipelines": [
+    {
+      "name": "build",
+      "stages": [
+        {
+          "type": "org.osbuild.pacman",
+          "inputs": {
+            "packages": {
+              "type": "org.osbuild.files",
+              "origin": "org.osbuild.source",
+              "mpp-depsolve": {
+                "architecture": "x86_64",
+                "module-platform-id": "f34",
+                "repos": [
+                  {
+                    "id": "core",
+                    "baseurl": "https://mirrors.celianvdb.fr/archlinux/$repo/os/$arch"
+                  },
+                  {
+                    "id": "community",
+                    "baseurl": "https://mirrors.celianvdb.fr/archlinux/$repo/os/$arch"
+                  },
+                  {
+                    "id": "extra",
+                    "baseurl": "https://mirrors.celianvdb.fr/archlinux/$repo/os/$arch"
+                  }
+                ],
+                "packages": [
+                  "btrfs-progs",
+                  "dosfstools",
+                  "e2fsprogs",
+                  "qemu",
+                  "systemd",
+                  "tar",
+                  "xfsprogs",
+                  "xz"
+                ]
+              }
+            }
+          },
+          "options": {}
+        }
+      ]
+    }
+  ]
+}

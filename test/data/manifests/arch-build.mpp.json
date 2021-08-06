@@ -5,6 +5,9 @@
       "name": "build",
       "stages": [
         {
+          "type": "org.osbuild.pacman.conf"
+        },
+        {
           "type": "org.osbuild.pacman",
           "inputs": {
             "packages": {
@@ -28,6 +31,7 @@
                   }
                 ],
                 "packages": [
+                  "pacman",
                   "btrfs-progs",
                   "dosfstools",
                   "e2fsprogs",

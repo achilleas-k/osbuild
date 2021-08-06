@@ -251,12 +251,19 @@ def main(tree, inputs, options):
 
     subprocess.run(["/bin/sh", "-c", script], check=True)
 
-    with tempfile.NamedTemporaryFile(prefix="manifest.", mode='w') as manifest:
-        manifest.writelines(c+'\n' for c in packages)
-        manifest.flush()
+    os.makedirs(os.path.join(tree, "var/lib/pacman"), exist_ok=True)
+
+    import shutil
+    with tempfile.TemporaryDirectory(dir=tree) as tmpdir:
+        install_pkgs = []
+        for p in packages:
+            plink = os.path.join(tmpdir, p)
+            install_pkgs.append(os.path.relpath(plink, start=tree))
+            shutil.copy2(os.path.join(pkgpath, p), plink)
+
         subprocess.run([
-            "pacman", "-U", "--verbose", *packages
-        ], cwd=pkgpath, check=True)
+            "pacman", "-U", "--noconfirm", "--verbose", "--sysroot", tree, *install_pkgs
+        ], check=True)
 
     # remove temporary machine ID if it was created by us
     if not machine_id_set_previously:

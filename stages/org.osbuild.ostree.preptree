@@ -62,6 +62,11 @@ SCHEMA = """
     "description": "Create a regular directory for /tmp",
     "type": "boolean",
     "default": true
+  },
+  "unified-core": {
+    "description": "Use new unified core codepath",
+    "type": "boolean",
+    "default": false
   }
 }
 """
@@ -114,6 +119,7 @@ def main(tree, options):
     etc_group_members = options.get("etc_group_members", [])
     initramfs = options.get("initramfs-args", [])
     tmp_is_dir = options.get("tmp-is-dir", True)
+    unified_core = options.get("unified-core", False)
 
     # rpm-ostree will either ensure that machine-id is empty
     # when machineid-compat is 'true' is or will remove it
@@ -165,8 +171,12 @@ def main(tree, options):
     treefile["etc-group-members"] = etc_group_members
     treefile["initramfs-args"] = initramfs
 
+    args = []
+    if unified_core:
+        args += ["--unified-core"]
+
     with treefile.as_tmp_file() as path:
-        subprocess.run(["rpm-ostree", "compose", "postprocess",
+        subprocess.run(["rpm-ostree", "compose", "postprocess", *args,
                         tree, path],
                        check=True)
 

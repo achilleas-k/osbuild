@@ -48,6 +48,11 @@ SCHEMA_2 = """
       "description": "Set selinux label version",
       "type": "integer",
       "default": 0
+    },
+    "unified-core": {
+      "description": "Use new unified core codepath",
+      "type": "boolean",
+      "default": false
     }
   }
 },
@@ -72,6 +77,7 @@ def main(inputs, output_dir, options, meta):
     ref = options["ref"]
     os_version = options.get("os_version", None)
     parent = options.get("parent", None)
+    unified_core = options.get("unified-core", False)
 
     # rpm-ostree compose commit wants to consume the commit
     # so for now, we copy the whole tree and let it have its
@@ -91,6 +97,9 @@ def main(inputs, output_dir, options, meta):
 
         argv = ["rpm-ostree", "compose", "commit"]
         argv += [f"--repo={repo}"]
+
+        if unified_core:
+            argv += ["--unified-core"]
 
         if parent:
             argv += [f"--parent={parent}"]

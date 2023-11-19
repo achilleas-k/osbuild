@@ -225,6 +225,8 @@ class BuildRoot(contextlib.AbstractContextManager):
         mounts += ["--ro-bind", "/sys", "/sys"]
         mounts += ["--ro-bind-try", "/sys/fs/selinux", "/sys/fs/selinux"]
 
+        mounts += ["--dev-bind", "/dev/fuse", "/dev/fuse"]
+
         # There was a bug in mke2fs (fixed in versionv 1.45.7) where mkfs.ext4
         # would fail because the default config, created on the fly, would
         # contain a syntax error. Therefore we bind mount the config from

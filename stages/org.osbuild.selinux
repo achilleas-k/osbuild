@@ -30,6 +30,9 @@ from osbuild.util import selinux
 
 CAPABILITIES = ["CAP_MAC_ADMIN"]
 
+# support running "unwrapped" (outside the bwrap container)
+UNWRAP = True
+
 
 SCHEMA = """
 "additionalProperties": false,

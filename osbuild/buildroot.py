@@ -10,6 +10,7 @@ import importlib
 import importlib.util
 import io
 import os
+import pathlib
 import select
 import stat
 import subprocess
@@ -18,7 +19,7 @@ import time
 from typing import Set
 
 from osbuild.api import BaseAPI
-from osbuild.util import linux
+from osbuild.util import linux, mnt
 
 __all__ = [
     "BuildRoot",
@@ -304,6 +305,53 @@ class BuildRoot(contextlib.AbstractContextManager):
         if extra_env:
             env.update(extra_env)
 
+        if argv[0].endswith("org.osbuild.selinux"):
+            print("-------------")
+            print("SELINUX stage")
+            argv = ["/usr/lib/osbuild/stages/org.osbuild.selinux"]
+            # cmd = [self._runner] + argv
+            cmd = argv
+            print("RUNNING: " + " ".join(cmd))
+
+            # Bind mount the runner into the container at a well known location
+            mounts += ["--dir", "/run/osbuild/api"]
+            os.makedirs("/run/osbuild/api")
+            print("api bind mounts")
+            for api in self._apis:
+                print("  - " + api.endpoint)
+                api_path = pathlib.Path("/run/osbuild/api/", api.endpoint)
+                api_path.touch()
+
+                mnt.mount(api.socket_address, api_path, bind=True)
+
+            # Make caller-provided mounts available as well.
+            print("caller bind mounts")
+            for b in binds or []:
+                print("  - " + b)
+                src, dst = b.split(":")
+                if os.path.isdir(src):
+                    os.makedirs(dst)
+                else:
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    pathlib.Path(dst).touch()
+                mnt.mount(src, dst, bind=True, ro=False)
+                subprocess.run(["ls", "-lad", src, dst])
+
+            print("caller ro bind mounts")
+            for b in readonly_binds or []:
+                print("  - " + b)
+                src, dst = b.split(":")
+                if os.path.isdir(src):
+                    os.makedirs(dst)
+                else:
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    pathlib.Path(dst).touch()
+                mnt.mount(src, dst, bind=True, ro=True)
+                subprocess.run(["ls", "-lad", src, dst])
+
+            print("done binding")
+
+        subprocess.run(["ls", "-la", "/run/osbuild/tree/usr/lib/systemd/system-generators/"], check=False)
         proc = subprocess.Popen(cmd,
                                 bufsize=0,
                                 env=env,

@@ -305,17 +305,18 @@ class BuildRoot(contextlib.AbstractContextManager):
         if extra_env:
             env.update(extra_env)
 
-        if argv[0].endswith("org.osbuild.selinux"):
+        if argv[0].endswith("org.osbuild.selinux") or argv[0].endswith("org.osbuild.ostree.deploy.container"):
             print("-------------")
             print("SELINUX stage")
-            argv = ["/usr/lib/osbuild/stages/org.osbuild.selinux"]
+            stage_name = os.path.basename(argv[0])
+            argv = [f"/usr/lib/osbuild/stages/{stage_name}"]
             # cmd = [self._runner] + argv
             cmd = argv
             print("RUNNING: " + " ".join(cmd))
 
             # Bind mount the runner into the container at a well known location
             mounts += ["--dir", "/run/osbuild/api"]
-            os.makedirs("/run/osbuild/api")
+            os.makedirs("/run/osbuild/api", exist_ok=True)
             print("api bind mounts")
             for api in self._apis:
                 print("  - " + api.endpoint)
@@ -330,28 +331,25 @@ class BuildRoot(contextlib.AbstractContextManager):
                 print("  - " + b)
                 src, dst = b.split(":")
                 if os.path.isdir(src):
-                    os.makedirs(dst)
+                    os.makedirs(dst, exist_ok=True)
                 else:
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     pathlib.Path(dst).touch()
                 mnt.mount(src, dst, bind=True, ro=False)
-                subprocess.run(["ls", "-lad", src, dst])
 
             print("caller ro bind mounts")
             for b in readonly_binds or []:
                 print("  - " + b)
                 src, dst = b.split(":")
                 if os.path.isdir(src):
-                    os.makedirs(dst)
+                    os.makedirs(dst, exist_ok=True)
                 else:
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     pathlib.Path(dst).touch()
                 mnt.mount(src, dst, bind=True, ro=True)
-                subprocess.run(["ls", "-lad", src, dst])
 
             print("done binding")
 
-        subprocess.run(["ls", "-la", "/run/osbuild/tree/usr/lib/systemd/system-generators/"], check=False)
         proc = subprocess.Popen(cmd,
                                 bufsize=0,
                                 env=env,

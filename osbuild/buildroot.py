@@ -235,7 +235,7 @@ class BuildRoot(contextlib.AbstractContextManager):
                    "/etc/mke2fs.conf"]
 
         # Skopeo needs things like /etc/containers/policy.json, so take them from buildroot
-        mounts += ["--ro-bind-try",
+        mounts += ["--bind-try",
                    os.path.join(self._rootdir, "etc/containers"),
                    "/etc/containers"]
         mounts += ["--dir", "/etc/containers/networks"]

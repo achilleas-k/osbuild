@@ -238,6 +238,7 @@ class BuildRoot(contextlib.AbstractContextManager):
         mounts += ["--ro-bind-try",
                    os.path.join(self._rootdir, "etc/containers"),
                    "/etc/containers"]
+        mounts += ["--dir", "/etc/containers/networks"]
 
         # We execute our own modules by bind-mounting them from the host into
         # the build-root. We have minimal requirements on the build-root, so

@@ -13,7 +13,7 @@ import osbuild.api
 from osbuild.util import containers
 from osbuild.util.mnt import MountGuard
 
-CAPABILITIES = ["CAP_MAC_ADMIN"]
+CAPABILITIES = ["CAP_MAC_ADMIN", "CAP_NET_ADMIN"]
 
 SCHEMA_2 = """
 "options": {

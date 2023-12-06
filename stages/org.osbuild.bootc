@@ -1,0 +1,95 @@
+#!/usr/bin/python3
+"""
+Deploy a bootc-enabled container
+
+Run a bootc-enabled container image to install it to a filesystem tree.
+"""
+import os
+import subprocess
+import sys
+
+import osbuild.api
+from osbuild.util import containers
+from osbuild.util.mnt import MountGuard
+
+CAPABILITIES = ["CAP_MAC_ADMIN"]
+
+SCHEMA_2 = """
+"options": {
+},
+"inputs": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["images"],
+  "properties": {
+    "images": {
+      "type": "object",
+      "description": "Container Image to deploy",
+      "additionalProperties": true
+    }
+  }
+},
+"devices": {
+  "type": "object",
+  "additionalProperties": true
+},
+"mounts": {
+  "type": "array"
+}
+"""
+
+
+def make_fs_identifier(desc):
+    for key in ["uuid", "label"]:
+        val = desc.get(key)
+        if val:
+            return f"{key.upper()}={val}"
+    raise ValueError("unknown rootfs type")
+
+
+def ostree_container_deploy(tree, inputs, osname, target_imgref, kopts):
+    images = containers.parse_containers_input(inputs)
+    for image in images.values():
+        with containers.container_source(image) as (_, image_source):
+            args = ["chroot", tree, "podman", "run", "--rm", "--privileged", "--pid=host", "-v", "/:/target",
+                    "--security-opt", "label=type:unconfined_t", image_source, "bootc", "install-to-filesystem",
+                    "--target-no-signature-verification", "--karg=console=ttyS0,115200n8",
+                    "/target"]
+            print(" ".join(args), file=sys.stderr)
+            subprocess.run(args,
+                           encoding="utf8",
+                           stdout=sys.stderr,
+                           check=True)
+
+
+def main(tree, inputs, options):
+    osname = options["osname"]
+    rootfs = options.get("rootfs")
+    mounts = options.get("mounts", [])
+    kopts = options.get("kernel_opts", [])
+    target_imgref = options.get("target_imgref")
+
+    # schema should catch the case in which there are more
+    # than one input but this adds a second layer of security
+    if len(inputs) > 1:
+        raise ValueError("Only one input accepted")
+
+    if rootfs:
+        rootfs_id = make_fs_identifier(rootfs)
+        kopts += [f"root={rootfs_id}"]
+
+    with MountGuard() as mounter:
+        for mount in mounts:
+            path = mount.lstrip("/")
+            path = os.path.join(tree, path)
+            mounter.mount(path, path)
+
+        ostree_container_deploy(tree, inputs, osname, target_imgref, kopts)
+
+
+if __name__ == '__main__':
+    stage_args = osbuild.api.arguments()
+    r = main(stage_args["tree"],
+             stage_args["inputs"],
+             stage_args["options"])
+    sys.exit(r)

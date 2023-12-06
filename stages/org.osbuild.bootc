@@ -49,6 +49,7 @@ def make_fs_identifier(desc):
 
 
 def networkless():
+    os.makedirs("/etc/cni/net.d/", exist_ok=True)
     with open("/etc/cni/net.d/networkless.conflist", "w", encoding="utf-8") as netfile:
         data = {
            "cniVersion": "0.4.0",

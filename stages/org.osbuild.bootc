@@ -49,6 +49,10 @@ def make_fs_identifier(desc):
 
 
 def networkless():
+    subprocess.run(["podman", "network", "create", "networkless"],
+                   encoding="utf8",
+                   stdout=sys.stderr,
+                   check=True)
     os.makedirs("/etc/cni/net.d/", exist_ok=True)
     with open("/etc/cni/net.d/networkless.conflist", "w", encoding="utf-8") as netfile:
         data = {

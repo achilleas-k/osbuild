@@ -12,7 +12,7 @@ import osbuild.api
 from osbuild.util import containers
 from osbuild.util.mnt import MountGuard
 
-# CAPABILITIES = ["CAP_MAC_ADMIN"]
+CAPABILITIES = ["CAP_MAC_ADMIN"]
 
 SCHEMA_2 = """
 "options": {
@@ -54,7 +54,7 @@ def ostree_container_deploy(tree, inputs, osname, target_imgref, kopts):
             args = ["podman", "run", "--env=RUST_LOG=debug", "--rm", "--privileged", "--pid=host", "-v", "/:/target",
                     "--security-opt", "label=type:unconfined_t", image_source, "bootc", "install-to-filesystem",
                     "--target-no-signature-verification", "--karg=console=ttyS0,115200n8", "/target"]
-            args = ["podman", "--log-level=info", "run", "--pid=host", "--network=host", "--privileged", "--rm",
+            args = ["podman", "--log-level=info", "run", "--pid=host", "--network=host", "--rm",
                     "--security-opt", "label=type:unconfined_t", image_source,
                     "uname", "-a"]
             print(" ".join(args), file=sys.stderr)

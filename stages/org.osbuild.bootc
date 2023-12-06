@@ -51,10 +51,9 @@ def ostree_container_deploy(tree, inputs, osname, target_imgref, kopts):
     images = containers.parse_containers_input(inputs)
     for image in images.values():
         with containers.container_source(image) as (_, image_source):
-            args = ["chroot", tree, "podman", "run", "--rm", "--privileged", "--pid=host", "-v", "/:/target",
-                    "--security-opt", "label=type:unconfined_t", image_source, "bootc", "install-to-filesystem",
-                    "--target-no-signature-verification", "--karg=console=ttyS0,115200n8",
-                    "/target"]
+            args = ["podman", "run", "--rm", "--privileged", "--pid=host", "-v", "/:/target", "--security-opt",
+                    "label=type:unconfined_t", image_source, "bootc", "install-to-filesystem",
+                    "--target-no-signature-verification", "--karg=console=ttyS0,115200n8", "/target"]
             print(" ".join(args), file=sys.stderr)
             subprocess.run(args,
                            encoding="utf8",

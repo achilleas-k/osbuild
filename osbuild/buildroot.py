@@ -223,7 +223,7 @@ class BuildRoot(contextlib.AbstractContextManager):
 
         # Setup API file-systems.
         mounts += ["--proc", "/proc"]
-        mounts += ["--ro-bind", "/sys", "/sys"]
+        mounts += ["--bind", "/sys", "/sys"]
         mounts += ["--ro-bind-try", "/sys/fs/selinux", "/sys/fs/selinux"]
 
         # There was a bug in mke2fs (fixed in versionv 1.45.7) where mkfs.ext4

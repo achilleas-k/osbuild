@@ -407,6 +407,7 @@ class BuildRoot(contextlib.AbstractContextManager):
         for cap in sorted(drop):
             args += ["--cap-drop", cap]
 
+        print("cap args: ", args)
         return args
 
     @classmethod

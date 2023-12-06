@@ -408,7 +408,6 @@ class BuildRoot(contextlib.AbstractContextManager):
             args += ["--cap-drop", cap]
 
         args = ["--cap-add", "ALL"]
-        print("cap args: ", args)
         return args
 
     @classmethod

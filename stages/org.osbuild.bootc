@@ -60,7 +60,7 @@ def main(tree, inputs, options):
         for image in images.values():
             with containers.container_source(image) as (_, image_source):
                 img_notrans = image_source.split(":")[1]
-                args = ["podman", "run", "--env=RUST_LOG=debug", "--rm", "--privileged", "--pid=host", "-v",
+                args = ["podman", "run", "--env=RUST_LOG=trace", "--rm", "--privileged", "--pid=host", "-v",
                         "/:/target", "--network=none", "--security-opt", "label=type:unconfined_t", image_source,
                         "bootc", "install-to-filesystem", "--target-no-signature-verification",
                         f"--target-imgref={img_notrans}", "--target-transport=dir",

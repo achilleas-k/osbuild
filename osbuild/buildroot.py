@@ -306,9 +306,9 @@ class BuildRoot(contextlib.AbstractContextManager):
         if extra_env:
             env.update(extra_env)
 
-        if argv[0].endswith("org.osbuild.selinux") or argv[0].endswith("org.osbuild.ostree.deploy.container"):
+        if argv[0].endswith("org.osbuild.bootc"):
             print("-------------")
-            print("SELINUX stage")
+            print("bootc stage")
             stage_name = os.path.basename(argv[0])
             argv = [f"/usr/lib/osbuild/stages/{stage_name}"]
             # cmd = [self._runner] + argv

@@ -62,7 +62,7 @@ def main(tree, inputs, options):
                 img_notrans = image_source.split(":")[1]
                 os.makedirs("/target/boot", exist_ok=True)
                 args = ["podman", "run", "--env=RUST_LOG=debug", "--rm", "--privileged", "--pid=host", "-v",
-                        "/target:/target", "--security-opt", "label=type:unconfined_t", image_source,
+                        "/target:/target", "--network=none", "--security-opt", "label=type:unconfined_t", image_source,
                         "bootc", "install-to-filesystem", "--target-no-signature-verification",
                         "--target-imgref=quay.io/centos-bootc/fedora-bootc:eln", "--target-transport=registry",
                         "--karg=console=ttyS0,115200n8", "/target"]

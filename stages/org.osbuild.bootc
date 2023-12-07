@@ -62,7 +62,7 @@ def main(tree, inputs, options):
                 args = ["podman", "run", "--env=RUST_LOG=debug", "--rm", "--privileged", "--pid=host", "-v",
                         "/:/target", "--network=none", "--security-opt", "label=type:unconfined_t", image_source,
                         "bootc", "install-to-filesystem", "--target-no-signature-verification",
-                        "--target-imgref=quay.io/centos-bootc/fedora-bootc:eln",
+                        f"--target-imgref={image_source}", "--target-transport=dir",
                         "--karg=console=ttyS0,115200n8", "/target"]
                 print(" ".join(args), file=sys.stderr)
                 subprocess.run(args,

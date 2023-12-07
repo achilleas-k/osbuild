@@ -284,7 +284,7 @@ class BuildRoot(contextlib.AbstractContextManager):
             "--die-with-parent",
             "--new-session",
             "--unshare-ipc",
-            "--unshare-pid",
+            # "--unshare-pid",
             "--unshare-net"
         ]
 

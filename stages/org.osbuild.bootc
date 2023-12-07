@@ -65,7 +65,7 @@ def main(tree, inputs, options):
                         "/target:/target", "--network=none", "--security-opt", "label=type:unconfined_t", image_source,
                         "bootc", "install-to-filesystem", "--target-no-signature-verification",
                         "--target-imgref=quay.io/centos-bootc/fedora-bootc:eln", "--target-transport=registry",
-                        "--karg=console=ttyS0,115200n8", "/target"]
+                        "--skip-fetch-check", "--karg=console=ttyS0,115200n8", "/target"]
                 print(" ".join(args), file=sys.stderr)
                 subprocess.run(args,
                                encoding="utf8",

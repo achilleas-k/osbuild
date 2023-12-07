@@ -63,7 +63,7 @@ def main(tree, inputs, options):
                 args = ["podman", "run", "--env=RUST_LOG=trace", "--rm", "--privileged", "--pid=host", "-v",
                         "/:/target", "--network=none", "--security-opt", "label=type:unconfined_t", image_source,
                         "bootc", "install-to-filesystem", "--target-no-signature-verification",
-                        f"--target-imgref={img_notrans}", "--target-transport=dir",
+                        f"--target-imgref={img_notrans}000", "--target-transport=dir",
                         "--karg=console=ttyS0,115200n8", "/target"]
                 print(" ".join(args), file=sys.stderr)
                 subprocess.run(args,

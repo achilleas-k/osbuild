@@ -172,9 +172,6 @@ class ContainersInput(inputs.InputService):
         # bind mount the input directory to the destination
         os.makedirs(dest)
         self.mg.mount(source_archive, dest)
-        cmd = ["skopeo", "copy", f"dir:{dest}/image", f"oci-archive:{dest}/image.tar"]
-        print(" ".join(cmd))
-        subprocess.run(cmd, check=True)
 
         return ref, "oci-archive"
 

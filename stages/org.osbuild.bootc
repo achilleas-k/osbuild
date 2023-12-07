@@ -61,7 +61,7 @@ def main(tree, inputs, options):
             with containers.container_source(image) as (_, image_source):
                 img_notrans = image_source.split(":")[1]
                 args = ["podman", "run", "--env=RUST_LOG=debug", "--rm", "--privileged", "--pid=host", "-v",
-                        "/:/target", "--network=none", "--security-opt", "label=type:unconfined_t", image_source,
+                        "/:/target", "--security-opt", "label=type:unconfined_t", image_source,
                         "bootc", "install-to-filesystem", "--target-no-signature-verification",
                         "--target-imgref=quay.io/centos-bootc/fedora-bootc:eln", "--target-transport=registry",
                         "--karg=console=ttyS0,115200n8", "/target"]

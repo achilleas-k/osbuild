@@ -124,6 +124,7 @@ def container_source(image):
             # We can't have special characters like ":" in the source names because containers/image
             # treats them special, like e.g. /some/path:tag, so we make a symlink to the real name
             # and pass the symlink name to skopeo to make it work with anything
+            print(f"LINKING {image_filepath} -> {tmp_source}")
             os.symlink(image_filepath, tmp_source)
 
         image_source = f"{container_format}:{tmp_source}"

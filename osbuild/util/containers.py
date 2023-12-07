@@ -114,7 +114,7 @@ def container_source(image):
         raise RuntimeError(f"Unknown container format {container_format}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_source = os.path.join(tmpdir, "image")
+        tmp_source = os.path.join(tmpdir, "image.tar")
 
         if container_format == "dir" and image["manifest-list"]:
             # copy the source container to the tmp source so we can merge the manifest into it
@@ -124,7 +124,7 @@ def container_source(image):
             # We can't have special characters like ":" in the source names because containers/image
             # treats them special, like e.g. /some/path:tag, so we make a symlink to the real name
             # and pass the symlink name to skopeo to make it work with anything
-            os.link(image_filepath, tmp_source)
+            os.symlink(image_filepath, tmp_source)
 
         image_source = f"{container_format}:{tmp_source}"
         yield image_name, image_source

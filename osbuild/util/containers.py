@@ -56,7 +56,7 @@ def parse_containers_input(inputs):
 
     res = {}
     for checksum, data in archives.items():
-        filepath = os.path.join(images["path"], checksum, "image")
+        filepath = os.path.join(images["path"], checksum, "image.tar")
         list_path = None
         if data["format"] == "dir":
             digest = manifest_digest(filepath)

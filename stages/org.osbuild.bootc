@@ -59,10 +59,11 @@ def main(tree, inputs, options):
         images = containers.parse_containers_input(inputs)
         for image in images.values():
             with containers.container_source(image) as (_, image_source):
+                img_notrans = image_source.split(":")[1]
                 args = ["podman", "run", "--env=RUST_LOG=debug", "--rm", "--privileged", "--pid=host", "-v",
                         "/:/target", "--network=none", "--security-opt", "label=type:unconfined_t", image_source,
                         "bootc", "install-to-filesystem", "--target-no-signature-verification",
-                        f"--target-imgref={image_source}", "--target-transport=dir",
+                        f"--target-imgref={img_notrans}", "--target-transport=dir",
                         "--karg=console=ttyS0,115200n8", "/target"]
                 print(" ".join(args), file=sys.stderr)
                 subprocess.run(args,

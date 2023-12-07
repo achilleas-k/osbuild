@@ -41,44 +41,14 @@ SCHEMA_2 = """
 """
 
 
-def make_fs_identifier(desc):
-    for key in ["uuid", "label"]:
-        val = desc.get(key)
-        if val:
-            return f"{key.upper()}={val}"
-    raise ValueError("unknown rootfs type")
-
-
-def ostree_container_deploy(tree, inputs, osname, target_imgref, kopts):
-    images = containers.parse_containers_input(inputs)
-    for image in images.values():
-        with containers.container_source(image) as (_, image_source):
-            args = ["podman", "run", "--env=RUST_LOG=debug", "--rm", "--privileged", "--pid=host", "-v", "/:/target",
-                    "--network=none",
-                    "--security-opt", "label=type:unconfined_t", image_source, "bootc", "install-to-filesystem",
-                    "--target-no-signature-verification", "--karg=console=ttyS0,115200n8", "/target"]
-            print(" ".join(args), file=sys.stderr)
-            subprocess.run(args,
-                           encoding="utf8",
-                           stdout=sys.stderr,
-                           check=True)
-
-
 def main(tree, inputs, options):
-    osname = options["osname"]
-    rootfs = options.get("rootfs")
     mounts = options.get("mounts", [])
-    kopts = options.get("kernel_opts", [])
-    target_imgref = options.get("target_imgref")
+    # kopts = options.get("kernel_opts", [])
 
     # schema should catch the case in which there are more
     # than one input but this adds a second layer of security
     if len(inputs) > 1:
         raise ValueError("Only one input accepted")
-
-    if rootfs:
-        rootfs_id = make_fs_identifier(rootfs)
-        kopts += [f"root={rootfs_id}"]
 
     with MountGuard() as mounter:
         for mount in mounts:
@@ -86,7 +56,18 @@ def main(tree, inputs, options):
             path = os.path.join(tree, path)
             mounter.mount(path, path)
 
-        ostree_container_deploy(tree, inputs, osname, target_imgref, kopts)
+        images = containers.parse_containers_input(inputs)
+        for image in images.values():
+            with containers.container_source(image) as (_, image_source):
+                args = ["podman", "run", "--env=RUST_LOG=debug", "--rm", "--privileged", "--pid=host", "-v",
+                        "/:/target", "--network=none", "--security-opt", "label=type:unconfined_t", image_source,
+                        "bootc", "install-to-filesystem", "--target-no-signature-verification",
+                        "--karg=console=ttyS0,115200n8", "/target"]
+                print(" ".join(args), file=sys.stderr)
+                subprocess.run(args,
+                               encoding="utf8",
+                               stdout=sys.stderr,
+                               check=True)
 
 
 if __name__ == '__main__':

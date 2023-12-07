@@ -18,6 +18,7 @@ root of the tree is used as the oci archive file to install.
 """
 
 import os
+import subprocess
 import sys
 
 from osbuild import inputs
@@ -166,13 +167,14 @@ class ContainersInput(inputs.InputService):
 
     def map_source_ref(self, source, ref, target):
         source_archive = os.path.join(source, ref, "image")
-        dest = os.path.join(target, ref, "image")
+        dest = os.path.join(target, ref)
 
         # bind mount the input directory to the destination
         os.makedirs(dest)
-        self.mg.mount(source_archive, dest)
+        # self.mg.mount(source_archive, dest)
+        subprocess.run(["skopeo", "copy", f"dir:{source_archive}", f"oci-archive:{dest}/image"], check=True)
 
-        return ref, "dir"
+        return ref, "oci-archive"
 
     @staticmethod
     def map_pipeline_ref(store, ref, target):

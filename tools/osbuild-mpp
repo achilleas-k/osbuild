@@ -348,7 +348,6 @@ Example:
 
 """
 
-
 import argparse
 import base64
 import collections
@@ -372,6 +371,7 @@ import yaml
 
 from osbuild.util import containers, ostree
 from osbuild.util.rhsm import Subscriptions
+
 
 # We need to resolve an image name to a resolved image manifest digest
 # and the corresponding container id (which is the digest of the config object).
@@ -653,6 +653,7 @@ LocalFileSigLevel = Optional
         def parse_line(l):
             k, v = l.split(":", maxsplit=1)
             return k.strip(), v.strip()
+
         return dict([parse_line(line) for line in lines if ":" in line])
 
 
@@ -1020,7 +1021,7 @@ class ManifestFile:
                 prob = ""
                 if hasattr(err, 'problem_mark'):
                     mark = err.problem_mark
-                    prob = f": {err.problem} at line {mark.line+1} (col {mark.column+1})"
+                    prob = f": {err.problem} at line {mark.line + 1} (col {mark.column + 1})"
                 print(f"Invalid yaml in \"{path}\"{prob}")
                 sys.exit(1)
         else:
@@ -1600,7 +1601,7 @@ class ManifestFileV2(ManifestFile):
 
     def _process_container(self, stage):
         if stage.get("type", "") not in \
-                ["org.osbuild.skopeo", "org.osbuild.ostree.deploy.container"]:
+                ["org.osbuild.skopeo", "org.osbuild.ostree.deploy.container", "org.osbuild.container-deploy"]:
             return
 
         inputs = element_enter(stage, "inputs", {})

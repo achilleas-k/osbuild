@@ -1,0 +1,122 @@
+#!/usr/bin/python3
+"""Provide access to an image in the host system's container storage.
+
+"""
+
+import concurrent.futures
+import errno
+import hashlib
+import os
+import subprocess as sp
+import sys
+import tempfile
+from typing import Dict
+
+import toml
+
+from osbuild import sources
+from osbuild.util import ctx
+
+SCHEMA = """
+"additionalProperties": false,
+"definitions": {
+  "item": {
+    "description": "The container image to fetch indexed by the container image id",
+    "type": "object",
+    "additionalProperties": false,
+    "patternProperties": {
+      "sha256:[0-9a-f]{64}": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["image"],
+        "properties": {
+          "image": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "digest"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the image (including registry)."
+              },
+              "digest": {
+                "type": "string",
+                "description": "Digest of image in registry.",
+                "pattern": "sha256:[0-9a-f]{64}"
+              },
+              "tls-verify": {
+                "type": "boolean",
+                "description": "Require https (default true)."
+              },
+              "containers-transport": {
+                "type": "string",
+                "enum": ["docker", "containers-storage" ],
+                "description": "The containers transport from which to copy the container",
+                "default": "docker"
+              },
+              "storage-location": {
+                "type": "string",
+                "description": "The location of the local containers storage"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+},
+"properties": {
+  "items": {"$ref": "#/definitions/item"},
+  "digests": {"$ref": "#/definitions/item"}
+},
+"oneOf": [{
+  "required": ["items"]
+}, {
+  "required": ["digests"]
+}]
+"""
+
+
+class ContainersStorageSource(sources.SourceService):
+
+    storage_conf = None
+
+    def get_host_storage(self):
+        """
+        Read the host storage configuration.
+        """
+        if not self.storage_conf:
+            with open("/etc/containers/storage.conf", "r", encoding="utf-8") as conf_file:
+                self.storage_conf = toml.load(conf_file)
+        return self.storage_conf
+
+    def local_image_name(self, checksum):
+        """
+        Construct the full image name that references an image with a given checksum in the local storage.
+        """
+        conf = self.get_host_storage()
+        driver = conf["driver"]
+        graphroot = conf["graphroot"]
+        runroot = conf["runroot"]
+        checksum = checksum.split(":")[1]
+        # TODO: include storage options
+        return f"containers-storage:[{driver}@{graphroot}+{runroot}]:{checksum}"
+
+    def fetch_one(self, checksum, desc) -> None:
+        return
+
+    def fetch_all(self, items) -> None:
+        return
+
+    def exists(self, checksum, _desc) -> bool:
+        res = sp.run(["skopeo", "inspect", "--raw", self.local_image_name(checksum)], check=False, capture_output=True)
+        return res.returncode == 0
+
+
+def main():
+    service = ContainersStorageSource.from_args(sys.argv[1:])
+    service.main()
+
+
+if __name__ == '__main__':
+    main()

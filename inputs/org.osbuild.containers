@@ -63,6 +63,16 @@ SCHEMA = r"""
       }
     }
   },
+  "source-storage-ref": {
+    "type": "object",
+    "additionalProperties": false,
+    "minProperties": 1,
+    "patternProperties": {
+      ".*": {
+        "$ref": "#/definitions/source-options"
+      }
+    }
+  },
   "source-origin": {
     "type": "string",
     "description": "When the origin of the input is a source",
@@ -130,6 +140,7 @@ SCHEMA = r"""
          "oneOf": [
           {"$ref": "#/definitions/source-array-ref"},
           {"$ref": "#/definitions/source-object-ref"}
+          {"$ref": "#/definitions/source-storage-ref"}
         ]
       }
     }

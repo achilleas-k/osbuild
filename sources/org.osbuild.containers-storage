@@ -19,47 +19,19 @@ from osbuild.util import containers
 
 SCHEMA = """
 "additionalProperties": false,
-"definitions": {
-  "item": {
+"properties": {
+  "items": {
     "description": "The container image to fetch indexed by the container image id",
     "type": "object",
     "additionalProperties": false,
     "patternProperties": {
       "sha256:[0-9a-f]{64}": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["image"],
-        "properties": {
-          "image": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["name", "digest"],
-            "properties": {
-              "name": {
-                "type": "string",
-                "description": "Name of the image (including registry)."
-              },
-              "digest": {
-                "type": "string",
-                "description": "Digest of image in registry.",
-                "pattern": "sha256:[0-9a-f]{64}"
-              }
-            }
-          }
-        }
+        "additionalProperties": false
       }
     }
   }
-},
-"properties": {
-  "items": {"$ref": "#/definitions/item"},
-  "digests": {"$ref": "#/definitions/item"}
-},
-"oneOf": [{
-  "required": ["items"]
-}, {
-  "required": ["digests"]
-}]
+}
 """
 
 

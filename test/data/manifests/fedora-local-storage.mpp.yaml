@@ -1,0 +1,28 @@
+version: '2'
+pipelines:
+  - mpp-import-pipelines:
+      path: ../manifests/fedora-vars.ipp.yaml
+  - mpp-import-pipeline:
+      path: ../manifests/fedora-build-v2.ipp.yaml
+      id: build
+    runner:
+      mpp-format-string: org.osbuild.fedora{release}
+  - name: tree
+    build: name:build
+    stages:
+      - type: org.osbuild.skopeo
+        inputs:
+          images:
+            type: org.osbuild.containers-storage
+            origin: org.osbuild.source
+            references:
+              sha256:592a512bc34d6cc6da38fe583d07eca456655aea3b9a44c623e302b158054b14:
+                name: manifest-list-test
+        options:
+          destination:
+            type: containers-storage
+            storage-driver: vfs
+sources:
+  org.osbuild.containers-storage:
+    items:
+      sha256:592a512bc34d6cc6da38fe583d07eca456655aea3b9a44c623e302b158054b14: {}

@@ -34,22 +34,12 @@ SCHEMA = r"""
       "name": {
         "type": "string",
         "description": "The name to use for the image"
-      }
-    }
-  },
-  "source-storage-options": {
-    "type": "object",
-    "required": ["name"],
-    "additionalProperties": false,
-    "properties": {
-      "name": {
-        "type": "string",
-        "description": "The name to use for the image"
       },
-      "input-type": {
+      "type": {
         "type": "string",
-        "description": "the input type of the container",
-        "enum": ["org.osbuild.containers-storage"]
+        "default": "org.osbuild.skopeo",
+        "description": "The source type of the container",
+        "enum": ["org.osbuild.skopeo", "org.osbuild.containers-storage"]
       }
     }
   },
@@ -77,16 +67,6 @@ SCHEMA = r"""
         "options": {
           "$ref": "#/definitions/source-options"
         }
-      }
-    }
-  },
-  "source-storage-ref": {
-    "type": "object",
-    "additionalProperties": false,
-    "minProperties": 1,
-    "patternProperties": {
-      ".*": {
-        "$ref": "#/definitions/source-storage-options"
       }
     }
   },
@@ -156,8 +136,7 @@ SCHEMA = r"""
         "description": "Container image id",
          "oneOf": [
           {"$ref": "#/definitions/source-array-ref"},
-          {"$ref": "#/definitions/source-object-ref"},
-          {"$ref": "#/definitions/source-storage-ref"}
+          {"$ref": "#/definitions/source-object-ref"}
         ]
       }
     }
@@ -236,7 +215,6 @@ class ContainersInput(inputs.InputService):
         return files[0], "oci-archive"
 
     def map(self, store, origin, refs, target, _options):
-        source = store.source("org.osbuild.containers")
         images = {}
 
         for ref, data in refs.items():
@@ -245,11 +223,13 @@ class ContainersInput(inputs.InputService):
                 # are copied into the store and containers that are coming from the host's containers-storage.
                 # This will require the `toml` package in the buildroot. Alternatively, we could resolve the
                 # storage config by reading the host at the point of manifest generation.
-                input_type = data.get("input-type")
-                if input_type is not None:
+                source = data.get("type", "org.osbuild.skopeo")
+                if source == "org.osbuild.containers-storage":
                     ref, container_format = self.map_storage_ref(source, ref, target)
-                else:
+                elif source == "org.osbuild.skopeo":
                     ref, container_format = self.map_source_ref(source, ref, target)
+                else:
+                    raise RuntimeError(f"invalid source type for container input {source}")
             else:
                 ref, container_format = self.map_pipeline_ref(store, ref, target)
 

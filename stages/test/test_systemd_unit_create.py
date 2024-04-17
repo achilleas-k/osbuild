@@ -85,8 +85,8 @@ def test_systemd_unit_create(tmp_path, stage_module, unit_type, unit_path, expec
                 "Type": "oneshot",
                 "RemainAfterExit": True,
                 "ExecStart": [
-                    "mkdir -p /etc/mydir",
-                    "touch /etc/myfile"
+                    "/usr/bin/mkdir -p /etc/mydir",
+                    "/usr/bin/touch /etc/myfile"
                 ],
                 "Environment": [
                     {
@@ -113,9 +113,27 @@ def test_systemd_unit_create(tmp_path, stage_module, unit_type, unit_path, expec
             }
         }
     }
+
+    # create units in the tree for systemd-analyze verify
+    unit_section = options["config"]["Unit"]
+    target_path = tmp_path / "usr/lib/systemd/system"
+    os.makedirs(target_path, exist_ok=True)
+    for unit_name in unit_section.get("Wants", []) + unit_section.get("Requires", []) + unit_section.get("After", []):
+        with open(target_path / unit_name, mode="w", encoding="utf-8") as fp:
+            # if it's an empty file it get detected as "masked" and fails verification
+            fp.write("[Unit]\n")
+
+    # create units in the tree for systemd-analyze verify
+    binaries = ["mkdir", "touch"]
+    bin_path = tmp_path / "usr/bin"
+    os.makedirs(bin_path, exist_ok=True)
+    for bin_name in binaries:
+        with open(bin_path / bin_name, mode="w", encoding="utf-8") as fp:
+            fp.write("")
+        os.chmod(bin_path / bin_name, mode=0o755)
+
     expected_unit_path = tmp_path / expected_prefix / "create-directory.service"
-    # should the stage create the dir?
-    expected_unit_path.parent.mkdir(parents=True)
+    expected_unit_path.parent.mkdir(parents=True, exist_ok=True)
 
     stage_module.main(tmp_path, options)
     assert os.path.exists(expected_unit_path)
@@ -135,8 +153,8 @@ def test_systemd_unit_create(tmp_path, stage_module, unit_type, unit_path, expec
     [Service]
     Type=oneshot
     RemainAfterExit=True
-    ExecStart=mkdir -p /etc/mydir
-    ExecStart=touch /etc/myfile
+    ExecStart=/usr/bin/mkdir -p /etc/mydir
+    ExecStart=/usr/bin/touch /etc/myfile
     Environment="DEBUG=1"
     Environment="TRACE=1"
     EnvironmentFile=/etc/example.env

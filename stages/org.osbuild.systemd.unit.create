@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 import configparser
+import contextlib
+import os
 import subprocess
 import sys
 
@@ -48,7 +50,23 @@ def main(tree, options):
     with open(f"{systemd_dir}/{filename}", "w", encoding="utf8") as f:
         config.write(f, space_around_delimiters=False)
 
-    subprocess.run(["systemd-analyze", "verify", f"--root={tree}", f"{systemd_dir}/{filename}"], check=True)
+    # user unit verification requires a /run directory so we bind mount the one from the build root
+    with rbind_run(tree):
+        subprocess.run(["systemd-analyze", "verify",
+                        "--man=no",  # disable manpage checks
+                        f"--root={tree}",  # verify commands and units in the root tree
+                        f"{systemd_dir}/{filename}"],
+                       check=True)
+
+
+@contextlib.contextmanager
+def rbind_run(dest_root):
+    dst = os.path.join(dest_root, "run")
+    subprocess.run(["mount", "--rbind", "-o", "ro", "/run", dst], check=True)
+    try:
+        yield
+    finally:
+        subprocess.run(["umount", "--recursive", dst], check=False)
 
 
 if __name__ == '__main__':

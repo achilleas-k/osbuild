@@ -4,11 +4,7 @@ import os.path
 import re
 
 import pytest
-
-try:
-    import toml
-except ModuleNotFoundError:
-    import pytoml as toml
+from osbuld.util import toml
 
 from osbuild import testutil
 

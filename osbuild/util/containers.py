@@ -133,14 +133,15 @@ def containers_storage_source(image, image_filepath, container_format):
 
         image_id = image["checksum"].split(":")[1]
         image_source = f"{container_format}:[{driver}@{storage_path}+/run/containers/storage]{image_id}"
-        yield image_source
-
-        if driver == "overlay":
-            # NOTE: the overlay sub-directory isn't always released,
-            # so we need to force unmount it
-            ret = subprocess.run(["umount", "-f", "--lazy", os.path.join(storage_path, "overlay")], check=False)
-            if ret.returncode != 0:
-                print(f"WARNING: umount of overlay dir failed with an error: {ret}")
+        try:
+            yield image_source
+        finally:
+            if driver == "overlay":
+                # NOTE: the overlay sub-directory isn't always released,
+                # so we need to force unmount it
+                ret = subprocess.run(["umount", "-f", "--lazy", os.path.join(storage_path, "overlay")], check=False)
+                if ret.returncode != 0:
+                    print(f"WARNING: umount of overlay dir failed with an error: {ret}")
 
 
 @contextmanager
@@ -159,7 +160,10 @@ def dir_oci_archive_source(image, image_filepath, container_format):
             os.symlink(image_filepath, tmp_source)
 
         image_source = f"{container_format}:{tmp_source}"
-        yield image_source
+        try:
+            yield image_source
+        finally:
+            pass
 
 
 @contextmanager

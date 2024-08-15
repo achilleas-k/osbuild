@@ -188,10 +188,7 @@ def get_host_storage():
     """
     # pylint: disable=import-outside-toplevel
     # importing this at the top level will break the buildroot
-    try:
-        import tomllib as toml
-    except ImportError:
-        import tomli as toml
+    from osbuild.util import toml
 
     config_paths = ("/etc/containers/storage.conf", "/usr/share/containers/storage.conf")
     for conf_path in config_paths:

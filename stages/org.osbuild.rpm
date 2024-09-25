@@ -239,6 +239,8 @@ def main(tree, inputs, options):
     with contextlib.suppress(FileNotFoundError):
         os.unlink(f"{tree}/var/lib/systemd/random-seed")
 
+    os.unlink(f"{tree}/var/cache/ldconfig/aux-cache")
+
     # generate the metadata
     md = generate_package_metadata(tree, rpm_args)
     api.metadata(md)

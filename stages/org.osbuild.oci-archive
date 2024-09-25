@@ -89,6 +89,7 @@ def blobs_add_layer(blobs: str, tree: str):
     suffix = ".compressed"
     subprocess.run([compression,
                     "-S", suffix,
+                    "--no-name",
                     layer_file],
                    stdout=subprocess.DEVNULL,
                    check=True)

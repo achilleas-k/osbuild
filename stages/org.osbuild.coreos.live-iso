@@ -162,6 +162,42 @@ def make_efi_bootfile(tar_filename, efiboot_lodev):
             subprocess.check_call(['umount', d])
 
 
+def copy_stage(tree, inputs):
+    tmpisoroot = os.path.join(tree, 'live')
+    tmpisoimages = os.path.join(tmpisoroot, 'images')
+    tmpisoimagespxe = os.path.join(tmpisoimages, 'pxeboot')
+
+    # convention for kernel and initramfs names
+    kernel_img = 'vmlinuz'
+    initrd_img = 'initrd.img'
+
+    # ---- NOTE(akoutsou) copy stage or dedicated modules pxe stage? ---- #
+    print("=== Looking up kernel ver in /usr/lib/modules")
+    # Find the directory under `/usr/lib/modules/<kver>` where the
+    # kernel/initrd live. It will be the only entity in there.
+    modules_dir = os.path.join(inputs['tree']['path'], 'usr/lib/modules')
+    modules_dirents = os.listdir(modules_dir)
+    if len(modules_dirents) != 1:
+        raise RuntimeError(f"expected unique entry in modules dir, found: {modules_dirents}")
+    moduledir = modules_dirents[0]
+    print(f"=== Found module dir: {moduledir}")
+
+    print(f"=== Copying files from {modules_dir}/{moduledir} to {tmpisoimagespxe}")
+    # copy those files out of the ostree into the iso root dir
+    initramfs_img = 'initramfs.img'
+    for file in [kernel_img, initramfs_img]:
+        src = os.path.join(modules_dir, moduledir, file)
+        dst = os.path.join(tmpisoimagespxe, file)
+        if file == initramfs_img:
+            dst = os.path.join(tmpisoimagespxe, initrd_img)
+        print(f"\t{src} -> {dst}")
+        shutil.copyfile(src, dst)
+        print(f"\tchmod 644 {dst}")
+        # initramfs isn't world readable by default so let's open up perms
+        os.chmod(dst, 0o644)
+    # ------------------------------------------------------------------- #
+
+
 def main(inputs, mounts, tree, options, devices):
     basearch = os.uname().machine
     base_name = get_os_name(inputs['tree']['path'])
@@ -203,31 +239,7 @@ def main(inputs, mounts, tree, options, devices):
 
     tmpisofile = os.path.join(tree, iso_name)
 
-    # ---- NOTE(akoutsou) copy stage or dedicated modules pxe stage? ---- #
-    print("=== Looking up kernel ver in /usr/lib/modules")
-    # Find the directory under `/usr/lib/modules/<kver>` where the
-    # kernel/initrd live. It will be the only entity in there.
-    modules_dir = os.path.join(inputs['tree']['path'], 'usr/lib/modules')
-    modules_dirents = os.listdir(modules_dir)
-    if len(modules_dirents) != 1:
-        raise RuntimeError(f"expected unique entry in modules dir, found: {modules_dirents}")
-    moduledir = modules_dirents[0]
-    print(f"=== Found module dir: {moduledir}")
-
-    print(f"=== Copying files from {modules_dir}/{moduledir} to {tmpisoimagespxe}")
-    # copy those files out of the ostree into the iso root dir
-    initramfs_img = 'initramfs.img'
-    for file in [kernel_img, initramfs_img]:
-        src = os.path.join(modules_dir, moduledir, file)
-        dst = os.path.join(tmpisoimagespxe, file)
-        if file == initramfs_img:
-            dst = os.path.join(tmpisoimagespxe, initrd_img)
-        print(f"\t{src} -> {dst}")
-        shutil.copyfile(src, dst)
-        print(f"\tchmod 644 {dst}")
-        # initramfs isn't world readable by default so let's open up perms
-        os.chmod(dst, 0o644)
-    # ------------------------------------------------------------------- #
+    copy_stage(tree, inputs)
 
     # ---- NOTE(akoutsou) file stages or stamp stages ---------- #
     # Generate initramfs stamp file indicating that this is a live

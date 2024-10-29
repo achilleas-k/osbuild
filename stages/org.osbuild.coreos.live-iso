@@ -212,6 +212,12 @@ def copy_stage(tree, inputs):
     # ------------------------------------------------------------------- #
 
 
+def file_stage(path, contents):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as path_fp:
+        path_fp.write(contents)
+
+
 def main(inputs, mounts, tree, options, devices):
     basearch = os.uname().machine
     base_name = get_os_name(inputs['tree']['path'])
@@ -258,19 +264,15 @@ def main(inputs, mounts, tree, options, devices):
     # Generate initramfs stamp file indicating that this is a live
     # initramfs.  Store the build ID in it.
     stamppath = os.path.join(tmpinitrd_base, 'etc/coreos-live-initramfs')
-    os.makedirs(os.path.dirname(stamppath), exist_ok=True)
     print(f"=== Stamping {stamppath}: {version}")
-    with open(stamppath, 'w', encoding="utf-8") as fh:
-        fh.write(version + '\n')
+    file_stage(stamppath, version+"\n")
 
     # Generate rootfs stamp file with the build ID, indicating that the
     # rootfs has been appended and confirming that initramfs and rootfs are
     # from the same build.
     stamppath = os.path.join(tmpinitrd_rootfs, 'etc/coreos-live-rootfs')
-    os.makedirs(os.path.dirname(stamppath), exist_ok=True)
     print(f"=== Stamping {stamppath}: {version}")
-    with open(stamppath, 'w', encoding="utf-8") as fh:
-        fh.write(version + '\n')
+    file_stage(stamppath, version+"\n")
     # --------------------------------------------------------- #
 
     # ---- NOTE(akoutsou) truncate stage ------------------ #

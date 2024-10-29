@@ -3,8 +3,8 @@
 import glob
 import hashlib
 import os
-import subprocess
 import shutil
+import subprocess
 import sys
 
 import osbuild.api
@@ -35,12 +35,13 @@ def parse_os_release(deployed_tree):
     :returns: The OS release name
     :type: str
     """
-    r = dict()
-    with open(os.path.join(deployed_tree, 'etc/os-release')) as f:
+    relinfo = {}
+    with open(os.path.join(deployed_tree, 'etc/os-release'), encoding="utf-8") as f:
         for line in f:
             k, v = line.split('=', 1)
-            r[k] = v.strip(" \n\t'\"")
-    return r
+            relinfo[k] = v.strip(" \n\t'\"")
+    return relinfo
+
 
 def bwrap(usr, etc, cmd):
     """
@@ -54,11 +55,11 @@ def bwrap(usr, etc, cmd):
     :type: path: str
     """
     subprocess.check_call(["bwrap", "--unshare-pid", "--unshare-uts", "--unshare-ipc", "--dev-bind", "/dev", "/dev",
-                       "--ro-bind", "/sys", "/sys", "--proc", "/proc", "--chdir", "/", "--ro-bind", usr, "/usr",
-                       "--ro-bind", etc, "/etc", "--dir", "/tmp", "--tmpfs", "/var/tmp", "--tmpfs", "/run",
-                       "--bind", "/run/osbuild", "/run/osbuild",
-                       "--symlink", "usr/lib", "/lib", "--symlink", "usr/lib64", "/lib64",
-                       "--symlink", "usr/bin", "/bin", "--symlink", "usr/sbin", "/sbin"] + cmd)
+                           "--ro-bind", "/sys", "/sys", "--proc", "/proc", "--chdir", "/", "--ro-bind", usr, "/usr",
+                           "--ro-bind", etc, "/etc", "--dir", "/tmp", "--tmpfs", "/var/tmp", "--tmpfs", "/run",
+                           "--bind", "/run/osbuild", "/run/osbuild",
+                           "--symlink", "usr/lib", "/lib", "--symlink", "usr/lib64", "/lib64",
+                           "--symlink", "usr/bin", "/bin", "--symlink", "usr/sbin", "/sbin"] + cmd)
 
 
 def main(inputs, devices, tree, options):
@@ -72,12 +73,12 @@ def main(inputs, devices, tree, options):
 
     if options['fast']:
         fast_arg = ['--fast']
-   
+
     if img_type != "osmet":
         iso_name = glob.glob(f"{tree}/*.iso")[0]
         tmpisofile = os.path.join(tree, iso_name)
         cmd += [tmpisofile, f'{tmpisofile}.minimal', '--consume']
-        bwrap(usr, etc, cmd) 
+        bwrap(usr, etc, cmd)
         output_file = os.path.join(tree, options['filename'])
         shutil.move(tmpisofile, output_file)
 
@@ -89,7 +90,7 @@ def main(inputs, devices, tree, options):
             os.makedirs(tmpinitrd_rootfs, exist_ok=True)
             img_osmet = os.path.join(tmpinitrd_rootfs, f'{img}.osmet')
             extra_cmd = [image, '--description', os_release['PRETTY_NAME'], '--checksum',
-            img_checksum, '--output', img_osmet]
+                         img_checksum, '--output', img_osmet]
             bwrap(usr, etc, (cmd + extra_cmd + fast_arg))
 
 

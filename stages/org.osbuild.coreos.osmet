@@ -75,6 +75,8 @@ def main(inputs, devices, tree, options):
     if options['fast']:
         fast_arg = ['--fast']
 
+    # NOTE(akoutsou): The bulk of this stage is separated into two conditions (osmet and other). Maybe it would make
+    # more sense for this to be two separate stages.
     if img_type != "osmet":
         iso_name = glob.glob(f"{tree}/*.iso")[0]
         tmpisofile = os.path.join(tree, iso_name)

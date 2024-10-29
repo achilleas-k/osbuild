@@ -203,6 +203,8 @@ def main(inputs, mounts, tree, options, devices):
 
     tmpisofile = os.path.join(tree, iso_name)
 
+    # ---- NOTE(akoutsou) copy stage or dedicated modules pxe stage? ---- #
+    print("=== Looking up kernel ver in /usr/lib/modules")
     # Find the directory under `/usr/lib/modules/<kver>` where the
     # kernel/initrd live. It will be the only entity in there.
     modules_dir = os.path.join(inputs['tree']['path'], 'usr/lib/modules')
@@ -210,7 +212,9 @@ def main(inputs, mounts, tree, options, devices):
     if len(modules_dirents) != 1:
         raise RuntimeError(f"expected unique entry in modules dir, found: {modules_dirents}")
     moduledir = modules_dirents[0]
+    print(f"=== Found module dir: {moduledir}")
 
+    print(f"=== Copying files from {modules_dir}/{moduledir} to {tmpisoimagespxe}")
     # copy those files out of the ostree into the iso root dir
     initramfs_img = 'initramfs.img'
     for file in [kernel_img, initramfs_img]:
@@ -218,14 +222,19 @@ def main(inputs, mounts, tree, options, devices):
         dst = os.path.join(tmpisoimagespxe, file)
         if file == initramfs_img:
             dst = os.path.join(tmpisoimagespxe, initrd_img)
+        print(f"\t{src} -> {dst}")
         shutil.copyfile(src, dst)
+        print(f"\tchmod 644 {dst}")
         # initramfs isn't world readable by default so let's open up perms
         os.chmod(dst, 0o644)
+    # ------------------------------------------------------------------- #
 
+    # ---- NOTE(akoutsou) file stages or stamp stages ---------- #
     # Generate initramfs stamp file indicating that this is a live
     # initramfs.  Store the build ID in it.
     stamppath = os.path.join(tmpinitrd_base, 'etc/coreos-live-initramfs')
     os.makedirs(os.path.dirname(stamppath), exist_ok=True)
+    print(f"=== Stamping {stamppath}: {version}")
     with open(stamppath, 'w', encoding="utf-8") as fh:
         fh.write(version + '\n')
 
@@ -234,9 +243,12 @@ def main(inputs, mounts, tree, options, devices):
     # from the same build.
     stamppath = os.path.join(tmpinitrd_rootfs, 'etc/coreos-live-rootfs')
     os.makedirs(os.path.dirname(stamppath), exist_ok=True)
+    print(f"=== Stamping {stamppath}: {version}")
     with open(stamppath, 'w', encoding="utf-8") as fh:
         fh.write(version + '\n')
+    # --------------------------------------------------------- #
 
+    # ---- NOTE(akoutsou) truncate stage ------------------ #
     # Add placeholder for Ignition CPIO file.  This allows an external tool,
     # `coreos-installer iso ignition embed`, to modify an existing ISO image
     # to embed a user's custom Ignition config.  The tool wraps the Ignition
@@ -247,13 +259,17 @@ def main(inputs, mounts, tree, options, devices):
     # the simple case (where layered initrds are supported). The s390x case is
     # handled lower down
     if basearch != 's390x':
+        print(f"=== truncate {tmpisoimages}/ignition.img -s {IGNITION_IMG_SIZE}")
         with open(os.path.join(tmpisoimages, 'ignition.img'), 'wb') as fdst:
             fdst.write(bytes(IGNITION_IMG_SIZE))
         igninfo_json = {'file': 'images/ignition.img'}
+    # ----------------------------------------------------- #
 
+    # ---- NOTE(akoutsou) coreos features stage?
     # Generate JSON file that lists OS features available to
     # coreos-installer {iso|pxe} customize.  Put it in the initramfs for
     # pxe customize and the ISO for iso customize.
+    print(f"=== Writing features at {tmpinitrd_base}/etc/coreos/features.json and {tmpisocoreos}/features.json")
     features = json.dumps(get_os_features(inputs['tree']['path']), indent=2, sort_keys=True) + '\n'
     featurespath = os.path.join(tmpinitrd_base, 'etc/coreos/features.json')
     os.makedirs(os.path.dirname(featurespath), exist_ok=True)
@@ -261,8 +277,14 @@ def main(inputs, mounts, tree, options, devices):
         fh.write(features)
     with open(os.path.join(tmpisocoreos, 'features.json'), 'w', encoding="utf-8") as fh:
         fh.write(features)
+    # ----------------------------------------------------- #
 
+    # ---- NOTE(akoutsou): normally, things like this would be part of the manifest generator (resolving things from the
+    # sources to populate stage options).  But it's understandable that this isn't as straightforward (getting kernel
+    # args from an disk image).  This might become a useful stage though, something that duplicates kargs from a path
+    # (mount or tree).
     # Get the kargs
+    print(f"=== Reading BLS entries from disk image {tmp_squashfs_dir}")
     blsentry = ensure_glob(os.path.join(tmp_squashfs_dir, 'boot/loader/entries/*.conf'))
     if len(blsentry) != 1:
         raise RuntimeError(f'Found != 1 BLS entries: {blsentry}')
@@ -283,6 +305,7 @@ def main(inputs, mounts, tree, options, devices):
     extend_initrd(iso_rootfs, tmpinitrd_rootfs, compress=False)
     # Check that the root.squashfs magic number is in the offset hardcoded
     # in sysroot.mount in 20live/live-generator
+    print(f"=== Checking root.squashfs offset in rootfs image {iso_rootfs}")
     with open(iso_rootfs, 'rb') as rootfs_fp:
         rootfs_fp.seek(124)
         if rootfs_fp.read(4) != b'hsqs':
@@ -361,10 +384,15 @@ def main(inputs, mounts, tree, options, devices):
             size=karg_embed_area_length,
             default=cmdline.strip(),
         )
+    print("=== karg sub done")
+    # --------------------------------- #
 
     # These sections are based on lorax templates
     # see https://github.com/weldr/lorax/tree/master/share/templates.d/99-generic
 
+    # ---- NOTE(akoutsou): genisoimage stage --- #
+
+    print("=== prepping geniso bits")
     # Generate the ISO image. Lots of good info here:
     # https://fedoraproject.org/wiki/User:Pjones/BootableCDsForBIOSAndUEFI
     genisoargs = ['/usr/bin/genisoimage', '-verbose',
@@ -382,8 +410,10 @@ def main(inputs, mounts, tree, options, devices):
                          ('/usr/share/syslinux/libcom32.c32', 0o755),
                          ('/usr/share/syslinux/libutil.c32',  0o755),
                          ('/usr/share/syslinux/vesamenu.c32', 0o755)]
+        print(f"=== copying files")
         for src, mode in isolinuxfiles:
             dst = os.path.join(tmpisoisolinux, os.path.basename(src))
+            print(f"\t{src} -> {dst}")
             shutil.copyfile(src, dst)
             os.chmod(dst, mode)
 
@@ -593,9 +623,12 @@ configfile $prefix/grub.cfg
 boot
 ''')
 
+            # --- NOTE(akoutsou) tar stage??
+
             # Install binaries from boot partition
             # Manually construct the tarball to ensure proper permissions and ownership
             efitarfile = tempfile.NamedTemporaryFile(suffix=".tar")
+            print(f"=== tar {efitarfile.name} {tmpimageefidir}")
             with tarfile.open(efitarfile.name, "w:", dereference=True) as tar:
                 tar.add(tmpimageefidir, arcname="/EFI", filter=strip)
 
@@ -604,6 +637,7 @@ boot
             # TODO make_efi_bootfile use mount and mkfs
             # We can try to find a way to do the same in OSBUILD
             make_efi_bootfile(efitarfile.name, efiboot_img)
+            print(f"=== cp {efitarfile.name} {efiboot_img}")
             shutil.copyfile(efiboot_img_filename, efibootfile)
 
         genisoargs += ['-eltorito-alt-boot',
@@ -624,6 +658,7 @@ boot
 
     # Write out the igninfo.json file. This is used by coreos-installer to know
     # how to embed the Ignition config.
+    print(f"=== writing {tmpisocoreos}/{igninfo_file}")
     with open(os.path.join(tmpisocoreos, igninfo_file), 'w') as fh:
         json.dump(igninfo_json, fh, indent=2, sort_keys=True)  # pylint: disable=E0601
         fh.write('\n')
@@ -659,11 +694,13 @@ boot
             for f in ensure_glob(os.path.join(tmpisoisolinux, '*.msg')):
                 os.unlink(f)
 
+    print(f"=== running {genisoargs_final}")
     subprocess.check_call(genisoargs_final)
 
     # Add MBR, and GPT with ESP, for x86_64 BIOS/UEFI boot when ISO is
     # copied to a USB stick
     if basearch == "x86_64":
+        print(f"=== (x86) isohybrid {tmpisofile}")
         subprocess.check_call(['/usr/bin/isohybrid', '--uefi', tmpisofile])
 
     # TODO should we move this part to the osmet/miniiso stage?
@@ -675,8 +712,10 @@ boot
     # coreos-installer takes care of removing it.
     os.unlink(iso_rootfs)
     os.unlink(miniso_data)
+    print(f"=== genisoimage: {genisoargs_minimal}")
     subprocess.check_call(genisoargs_minimal)
     if basearch == "x86_64":
+        print(f"=== (x86) isohybrid {tmpisofile}.minimal")
         subprocess.check_call(['/usr/bin/isohybrid', '--uefi', f'{tmpisofile}.minimal'])
 
 

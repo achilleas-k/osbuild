@@ -162,6 +162,20 @@ def make_efi_bootfile(tar_filename, efiboot_lodev):
             subprocess.check_call(['umount', d])
 
 
+def mkdir_stage(tree):
+    tmpisoroot = os.path.join(tree, 'live')
+    tmpisocoreos = os.path.join(tmpisoroot, 'coreos')
+    tmpisoimages = os.path.join(tmpisoroot, 'images')
+    tmpisoimagespxe = os.path.join(tmpisoimages, 'pxeboot')
+    tmpisoisolinux = os.path.join(tmpisoroot, 'isolinux')
+
+    # contents of initramfs on both PXE and ISO
+    tmpinitrd_base = os.path.join(tree, 'initrd')
+
+    for d in (tmpisoroot, tmpisocoreos, tmpisoimages, tmpisoimagespxe, tmpisoisolinux, tmpinitrd_base):
+        os.mkdir(d)
+
+
 def copy_stage(tree, inputs):
     tmpisoroot = os.path.join(tree, 'live')
     tmpisoimages = os.path.join(tmpisoroot, 'images')
@@ -225,9 +239,8 @@ def main(inputs, mounts, tree, options, devices):
 
     efiboot_img = devices['efiboot_img']['path']
     efiboot_img_filename = os.path.join(tree, options['efiboot_img_filename'])
-    for d in (tmpisoroot, tmpisocoreos, tmpisoimages, tmpisoimagespxe,
-              tmpisoisolinux, tmpinitrd_base):
-        os.mkdir(d)
+
+    mkdir_stage(tree)
 
     # convention for kernel and initramfs names
     kernel_img = 'vmlinuz'

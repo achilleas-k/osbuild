@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+
 import yaml
 
 import osbuild.api
@@ -55,7 +56,7 @@ def get_os_features(deployed_tree):
         'live-initrd-network': True,
     }
 
-    with open(os.path.join(deployed_tree, 'usr/share/coreos-installer/example-config.yaml')) as f:
+    with open(os.path.join(deployed_tree, 'usr/share/coreos-installer/example-config.yaml'), encoding="utf-8") as f:
         example_config_yaml = yaml.safe_load(f)
     features['installer-config-directives'] = {
         k: True for k in example_config_yaml
@@ -108,8 +109,8 @@ def cp_reflink(src, dest):
 def make_stream_hash(src, dest):
     bufsize = 2 * 1024 * 1024
     with open(src, 'rb') as inf:
-        with open(dest, 'w') as outf:
-            outf.write('stream-hash sha256 {}\n'.format(bufsize))
+        with open(dest, 'w', encoding="utf-8") as outf:
+            outf.write(f'stream-hash sha256 {bufsize}\n')
             while True:
                 buf = inf.read(bufsize)
                 if not buf:
@@ -118,16 +119,16 @@ def make_stream_hash(src, dest):
 
 
 def parse_os_release(deployed_tree):
-    r = dict()
+    relinfo = dict()
     with open(os.path.join(deployed_tree, 'etc/os-release')) as f:
         for line in f:
             k, v = line.split('=', 1)
-            r[k] = v.strip(" \n\t'\"")
-    return r
+            relinfo[k] = v.strip(" \n\t'\"")
+    return relinfo
 
 
 def get_os_name(deployed_tree):
-    with open(os.path.join(deployed_tree, 'usr/share/rpm-ostree/treefile.json')) as f:
+    with open(os.path.join(deployed_tree, 'usr/share/rpm-ostree/treefile.json'), encoding="utf-8") as f:
         treefile = json.load(f)
     return treefile['rojig']['name']
 
@@ -136,7 +137,7 @@ def ensure_glob(pathname, **kwargs):
     '''Call glob.glob(), and fail if there are no results.'''
     ret = glob.glob(pathname, **kwargs)
     if not ret:
-        raise Exception(f'No matches for {pathname}')
+        raise RuntimeError(f'No matches for {pathname}')
     return ret
 
 
@@ -202,13 +203,12 @@ def main(inputs, mounts, tree, options, devices):
 
     tmpisofile = os.path.join(tree, iso_name)
 
-
     # Find the directory under `/usr/lib/modules/<kver>` where the
     # kernel/initrd live. It will be the only entity in there.
     modules_dir = os.path.join(inputs['tree']['path'], 'usr/lib/modules')
     modules_dirents = os.listdir(modules_dir)
     if len(modules_dirents) != 1:
-        raise Exception(f"expected unique entry in modules dir, found: {modules_dirents}")
+        raise RuntimeError(f"expected unique entry in modules dir, found: {modules_dirents}")
     moduledir = modules_dirents[0]
 
     # copy those files out of the ostree into the iso root dir
@@ -226,7 +226,7 @@ def main(inputs, mounts, tree, options, devices):
     # initramfs.  Store the build ID in it.
     stamppath = os.path.join(tmpinitrd_base, 'etc/coreos-live-initramfs')
     os.makedirs(os.path.dirname(stamppath), exist_ok=True)
-    with open(stamppath, 'w') as fh:
+    with open(stamppath, 'w', encoding="utf-8") as fh:
         fh.write(version + '\n')
 
     # Generate rootfs stamp file with the build ID, indicating that the
@@ -234,7 +234,7 @@ def main(inputs, mounts, tree, options, devices):
     # from the same build.
     stamppath = os.path.join(tmpinitrd_rootfs, 'etc/coreos-live-rootfs')
     os.makedirs(os.path.dirname(stamppath), exist_ok=True)
-    with open(stamppath, 'w') as fh:
+    with open(stamppath, 'w', encoding="utf-8") as fh:
         fh.write(version + '\n')
 
     # Add placeholder for Ignition CPIO file.  This allows an external tool,
@@ -257,15 +257,15 @@ def main(inputs, mounts, tree, options, devices):
     features = json.dumps(get_os_features(inputs['tree']['path']), indent=2, sort_keys=True) + '\n'
     featurespath = os.path.join(tmpinitrd_base, 'etc/coreos/features.json')
     os.makedirs(os.path.dirname(featurespath), exist_ok=True)
-    with open(featurespath, 'w') as fh:
+    with open(featurespath, 'w', encoding="utf-8") as fh:
         fh.write(features)
-    with open(os.path.join(tmpisocoreos, 'features.json'), 'w') as fh:
+    with open(os.path.join(tmpisocoreos, 'features.json'), 'w', encoding="utf-8") as fh:
         fh.write(features)
 
     # Get the kargs
     blsentry = ensure_glob(os.path.join(tmp_squashfs_dir, 'boot/loader/entries/*.conf'))
     if len(blsentry) != 1:
-        raise Exception(f'Found != 1 BLS entries: {blsentry}')
+        raise RuntimeError(f'Found != 1 BLS entries: {blsentry}')
     blsentry = blsentry[0]
     blsentry_kargs = []
     with open(blsentry, encoding='utf8') as f:
@@ -274,7 +274,7 @@ def main(inputs, mounts, tree, options, devices):
                 blsentry_kargs = line.split(' ', 1)[1].strip().split(' ')
                 break
     if len(blsentry_kargs) == 0:
-        raise Exception("found no kargs in metal image")
+        raise RuntimeError("found no kargs in metal image")
 
     # Generate rootfs image
     iso_rootfs = os.path.join(tmpisoimagespxe, rootfs_img)
@@ -283,10 +283,10 @@ def main(inputs, mounts, tree, options, devices):
     extend_initrd(iso_rootfs, tmpinitrd_rootfs, compress=False)
     # Check that the root.squashfs magic number is in the offset hardcoded
     # in sysroot.mount in 20live/live-generator
-    with open(iso_rootfs, 'rb') as fh:
-        fh.seek(124)
-        if fh.read(4) != b'hsqs':
-            raise Exception("root.squashfs not at expected offset in rootfs image")
+    with open(iso_rootfs, 'rb') as rootfs_fp:
+        rootfs_fp.seek(124)
+        if rootfs_fp.read(4) != b'hsqs':
+            raise RuntimeError("root.squashfs not at expected offset in rootfs image")
     pxe_rootfs = os.path.join(tree, rootfs_img)
     # Clone to PXE image
     cp_reflink(iso_rootfs, pxe_rootfs)
@@ -324,7 +324,7 @@ def main(inputs, mounts, tree, options, devices):
             srcfile = os.path.join(srcdir, filename)
             dstfile = os.path.join(dstdir, filename)
             # Assumes all files are text
-            with open(srcfile) as fh:
+            with open(srcfile, encoding="utf-8") as fh:
                 buf = fh.read()
             newbuf = buf.replace('@@KERNEL-ARGS@@', kargs)
             # if we injected kargs, also check for an embed area
@@ -337,7 +337,7 @@ def main(inputs, mounts, tree, options, devices):
                     if len(cmdline) == 0:
                         cmdline = file_kargs
                     elif cmdline != file_kargs:
-                        raise Exception(f'Default cmdline is different: "{cmdline}" != "{file_kargs}"')
+                        raise RuntimeError(f'Default cmdline is different: "{cmdline}" != "{file_kargs}"')
 
                     length = karg_area_end.start() + len(karg_area_end[1]) - karg_area_start.start()
                     kargs_json['files'].append({
@@ -349,8 +349,8 @@ def main(inputs, mounts, tree, options, devices):
                     if karg_embed_area_length == 0:
                         karg_embed_area_length = length
                     elif length != karg_embed_area_length:
-                        raise Exception(f"Karg embed areas of varying length {kargs_json['files']}")
-            with open(dstfile, 'w') as fh:
+                        raise RuntimeError(f"Karg embed areas of varying length {kargs_json['files']}")
+            with open(dstfile, 'w', encoding="utf-8") as fh:
                 fh.write(buf)
             shutil.copystat(srcfile, dstfile)
             print(f'{srcfile} -> {dstfile}')
@@ -399,11 +399,11 @@ def main(inputs, mounts, tree, options, devices):
         # can be EFI/fedora or EFI/redhat
         grubpath = ensure_glob(os.path.join(tmpisoroot, 'EFI/*/grub.cfg'))
         if len(grubpath) != 1:
-            raise Exception(f'Found != 1 grub.cfg files: {grubpath}')
+            raise RuntimeError(f'Found != 1 grub.cfg files: {grubpath}')
         shutil.move(grubpath[0], os.path.join(tmpisoroot, 'boot/grub/grub.cfg'))
-        for f in kargs_json['files']:
-            if re.match('^EFI/.*/grub.cfg$', f['path']):
-                f['path'] = 'boot/grub/grub.cfg'
+        for file in kargs_json['files']:
+            if re.match('^EFI/.*/grub.cfg$', file['path']):
+                file['path'] = 'boot/grub/grub.cfg'
 
         # safely remove things we don't need in the final ISO tree
         for d in ['EFI', 'isolinux', 'zipl.prm']:
@@ -417,12 +417,12 @@ def main(inputs, mounts, tree, options, devices):
         INITRD_ADDRESS = '0x02000000'
         lorax_templates = '/usr/share/lorax/templates.d/99-generic/config_files/s390'
         shutil.copy(os.path.join(lorax_templates, 'redhat.exec'), tmpisoimages)
-        with open(os.path.join(lorax_templates, 'generic.ins'), 'r') as fp1:
-            with open(os.path.join(tmpisoroot, 'generic.ins'), 'w') as fp2:
+        with open(os.path.join(lorax_templates, 'generic.ins'), 'r', encoding="utf-8") as fp1:
+            with open(os.path.join(tmpisoroot, 'generic.ins'), 'w', encoding="utf-8") as fp2:
                 [fp2.write(line.replace('@INITRD_LOAD_ADDRESS@', INITRD_ADDRESS)) for line in fp1]
         for prmfile in ['cdboot.prm', 'genericdvd.prm', 'generic.prm']:
-            with open(os.path.join(tmpisoimages, prmfile), 'w') as fp1:
-                with open(os.path.join(tmpisoroot, 'zipl.prm'), 'r') as fp2:
+            with open(os.path.join(tmpisoimages, prmfile), 'w', encoding="utf-8") as fp1:
+                with open(os.path.join(tmpisoroot, 'zipl.prm'), 'r', encoding="utf-8") as fp2:
                     fp1.write(fp2.read().strip())
 
         # s390x's z/VM CMS files are limited to 8 char for filenames and extensions
@@ -434,10 +434,10 @@ def main(inputs, mounts, tree, options, devices):
         if options.get('fixture'):
             # truncate it to 128k so it includes the offsets to the initrd and kargs
             # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L24
-            with open(kernel_dest, 'rb+') as f:
-                f.truncate(128 * 1024)
-            with open(iso_initramfs, 'rb+') as f:
-                f.truncate(1024)
+            with open(kernel_dest, 'rb+') as kernel_fp:
+                kernel_fp.truncate(128 * 1024)
+            with open(iso_initramfs, 'rb+') as irfs_fp:
+                irfs_fp.truncate(1024)
 
         # On s390x, we reserve space for the Ignition config in the initrd
         # image directly since the bootloader doesn't support multiple initrds.
@@ -585,7 +585,7 @@ def main(inputs, mounts, tree, options, devices):
             # Torito at all.  In that case, GRUB thinks it booted from a
             # partition of the disk (a fake ESP created by isohybrid,
             # pointing to efiboot.img) and needs a grub.cfg there.
-            with open(os.path.join(tmpimageefidir, "BOOT", "grub.cfg"), "w") as fh:
+            with open(os.path.join(tmpimageefidir, "BOOT", "grub.cfg"), "w", encoding="utf-8") as fh:
                 fh.write(f'''search --label "{volid}" --set root --no-floppy
 set prefix=($root)/EFI/{vendor_id}
 echo "Booting via ESP..."
@@ -666,7 +666,7 @@ boot
     if basearch == "x86_64":
         subprocess.check_call(['/usr/bin/isohybrid', '--uefi', tmpisofile])
 
-    #TODO should we move this part to the osmet/miniiso stage?
+    # TODO should we move this part to the osmet/miniiso stage?
     genisoargs_minimal = genisoargs + ['-o', f'{tmpisofile}.minimal', tmpisoroot]
     # The only difference with the miniso is that we drop these two files.
     # Keep everything else the same to maximize file matching between the

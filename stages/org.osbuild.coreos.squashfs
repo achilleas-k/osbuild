@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-import os
 import glob
+import os
 import subprocess
 import sys
 
@@ -9,12 +9,11 @@ import osbuild.api
 
 def main(tree, mounts, devices):
     # TODO Fail/Warn if metal is not here?
-    if  devices['metal']:
+    if devices['metal']:
         tmp_squashfs_dir = mounts['root']['path']
         tmpinitrd_rootfs = os.path.join(tree, 'initrd-rootfs')
         os.makedirs(tmpinitrd_rootfs, exist_ok=True)
 
-        basearch = os.uname().machine
         # Remove the sysroot=readonly flag, see https://github.com/coreos/fedora-coreos-tracker/issues/589
         subprocess.check_call(['sed', '-i', '/readonly=true/d', f'{tmp_squashfs_dir}/ostree/repo/config'])
         # And ensure that the kernel binary and hmac file is in the place that dracut

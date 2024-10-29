@@ -54,6 +54,7 @@ def bwrap(usr, etc, cmd):
     :param cmd: The command to be executed
     :type: path: str
     """
+    print(f"coreos.osmet: running bwrap {cmd}")
     subprocess.check_call(["bwrap", "--unshare-pid", "--unshare-uts", "--unshare-ipc", "--dev-bind", "/dev", "/dev",
                            "--ro-bind", "/sys", "/sys", "--proc", "/proc", "--chdir", "/", "--ro-bind", usr, "/usr",
                            "--ro-bind", etc, "/etc", "--dir", "/tmp", "--tmpfs", "/var/tmp", "--tmpfs", "/run",

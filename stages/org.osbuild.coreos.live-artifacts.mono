@@ -182,6 +182,142 @@ def parse_metal_inputs(inputs):
     return metal_file, metal4k_file
 
 
+def genisoargs_x86_64(tmpisoisolinux):
+    # Install binaries from syslinux package
+    isolinuxfiles = [('/usr/share/syslinux/isolinux.bin', 0o755),
+                     ('/usr/share/syslinux/ldlinux.c32', 0o755),
+                     ('/usr/share/syslinux/libcom32.c32', 0o755),
+                     ('/usr/share/syslinux/libutil.c32', 0o755),
+                     ('/usr/share/syslinux/vesamenu.c32', 0o755)]
+    for src, mode in isolinuxfiles:
+        dst = os.path.join(tmpisoisolinux, os.path.basename(src))
+        shutil.copyfile(src, dst)
+        os.chmod(dst, mode)
+
+        # for legacy bios boot AKA eltorito boot
+        return ['-eltorito-boot', 'isolinux/isolinux.bin',
+                '-eltorito-catalog', 'isolinux/boot.cat',
+                '-no-emul-boot',
+                '-boot-load-size', '4',
+                '-boot-info-table']
+
+
+def genisoargs_ppc64le(tmpisoroot, kargs_json, volid):
+    os.makedirs(os.path.join(tmpisoroot, 'boot/grub'))
+    # can be EFI/fedora or EFI/redhat
+    grubpath = ensure_glob(os.path.join(tmpisoroot, 'EFI/*/grub.cfg'))
+    if len(grubpath) != 1:
+        raise ValueError(f'Found != 1 grub.cfg files: {grubpath}')
+    shutil.move(grubpath[0], os.path.join(tmpisoroot, 'boot/grub/grub.cfg'))
+    for f in kargs_json['files']:
+        if re.match('^EFI/.*/grub.cfg$', f['path']):
+            f['path'] = 'boot/grub/grub.cfg'
+
+    # safely remove things we don't need in the final ISO tree
+    for d in ['EFI', 'isolinux']:
+        shutil.rmtree(os.path.join(tmpisoroot, d))
+
+    # grub2-mkrescue is a wrapper around xorriso
+    return ['grub2-mkrescue', '-volid', volid]
+
+
+def genisoargs_s390x(tmpisoimages, tmpisoroot, tmpisoimagespxe, kernel_img, test_fixture, iso_initramfs, volid,
+                     name_version):
+    # Reserve 32MB for the kernel, starting memory address of the initramfs
+    # See https://github.com/weldr/lorax/blob/master/share/templates.d/99-generic/s390.tmpl
+    INITRD_ADDRESS = '0x02000000'
+    lorax_templates = '/usr/share/lorax/templates.d/99-generic/config_files/s390'
+    shutil.copy(os.path.join(lorax_templates, 'redhat.exec'), tmpisoimages)
+    with open(os.path.join(lorax_templates, 'generic.ins'), 'r', encoding='utf8') as fp1:
+        with open(os.path.join(tmpisoroot, 'generic.ins'), 'w', encoding='utf8') as fp2:
+            _ = [fp2.write(line.replace('@INITRD_LOAD_ADDRESS@', INITRD_ADDRESS)) for line in fp1]
+    for prmfile in ['cdboot.prm', 'genericdvd.prm', 'generic.prm']:
+        with open(os.path.join(tmpisoimages, prmfile), 'w', encoding='utf8') as fp1:
+            with open(os.path.join(tmpisoroot, 'zipl.prm'), 'r', encoding='utf8') as fp2:
+                fp1.write(fp2.read().strip())
+
+    # s390x's z/VM CMS files are limited to 8 char for filenames and extensions
+    # Also it is nice to keep naming convetion with Fedora/RHEL for existing users and code
+    kernel_dest = os.path.join(tmpisoimagespxe, 'kernel.img')
+    shutil.move(os.path.join(tmpisoimagespxe, kernel_img), kernel_dest)
+    kernel_img = 'kernel.img'
+
+    if test_fixture:
+        # truncate it to 128k so it includes the offsets to the initrd and kargs
+        # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L24
+        with open(kernel_dest, 'rb+') as f:
+            f.truncate(128 * 1024)
+        with open(iso_initramfs, 'rb+') as f:
+            f.truncate(1024)
+
+    # On s390x, we reserve space for the Ignition config in the initrd
+    # image directly since the bootloader doesn't support multiple initrds.
+    # We do this by inflating the initramfs just for the duration of the
+    # `mk-s390image` call.
+    initramfs_size = os.stat(iso_initramfs).st_size
+    # sanity-check it's 4-byte aligned (see align_initrd_for_uncompressed_append)
+    assert initramfs_size % 4 == 0
+
+    # combine kernel, initramfs and cmdline using the mk-s390image tool
+    os.truncate(iso_initramfs, initramfs_size + IGNITION_IMG_SIZE)
+    subprocess.check_call(['/usr/bin/mk-s390image',
+                           kernel_dest,
+                           os.path.join(tmpisoimages, 'cdboot.img'),
+                           '-r', iso_initramfs,
+                           '-p', os.path.join(tmpisoimages, 'cdboot.prm')])
+    os.truncate(iso_initramfs, initramfs_size)
+
+    # generate .addrsize file for LPAR
+    with open(os.path.join(tmpisoimages, 'initrd.addrsize'), 'wb') as addrsize:
+        addrsize_data = struct.pack(">iiii", 0, int(INITRD_ADDRESS, 16), 0,
+                                    os.stat(iso_initramfs).st_size)
+        addrsize.write(addrsize_data)
+
+    # safely remove things we don't need in the final ISO tree
+    for d in ['EFI', 'isolinux']:
+        shutil.rmtree(os.path.join(tmpisoroot, d))
+
+    return ['/usr/bin/xorrisofs', '-verbose',
+            '-volid', volid,
+            '-volset', f"{name_version}",
+            '-rational-rock', '-J', '-joliet-long',
+            '-no-emul-boot', '-eltorito-boot',
+            os.path.join(os.path.relpath(tmpisoimages, tmpisoroot), 'cdboot.img')]
+
+
+def update_image_offsets(tmpisoimages, iso_initramfs, kargs_json):
+    # Get the kargs and initramfs offsets in the cdboot.img. For more info, see:
+    # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L23
+    CDBOOT_IMG_OFFS_INITRD_START_BYTES = 66568
+    CDBOOT_IMG_OFFS_KARGS_START_BYTES = 66688
+    CDBOOT_IMG_OFFS_KARGS_MAX_SIZE = 896
+    with open(os.path.join(tmpisoimages, 'cdboot.img'), 'rb') as f:
+        f.seek(CDBOOT_IMG_OFFS_INITRD_START_BYTES)
+        offset = struct.unpack(">Q", f.read(8))[0]
+
+        # sanity-check we're at the right spot by comparing a few bytes
+        f.seek(offset)
+        with open(iso_initramfs, 'rb') as canonical:
+            if f.read(1024) != canonical.read(1024):
+                raise ValueError(f"expected initrd at offset {offset}")
+
+        # kargs are part of 'images/cdboot.img' blob
+        kargs_json['files'].append({
+            'path': 'images/cdboot.img',
+            'offset': CDBOOT_IMG_OFFS_KARGS_START_BYTES,
+            'pad': '\0',
+            'end': '\0',
+        })
+        kargs_json.update(
+            size=CDBOOT_IMG_OFFS_KARGS_MAX_SIZE,
+        )
+    return {
+        'file': 'images/cdboot.img',
+        'offset': offset + os.stat(iso_initramfs).st_size,
+        'length': IGNITION_IMG_SIZE,
+    }
+
+
 # Here we will generate the 4 Live/PXE CoreOS artifacts.
 # There are four files created and exported from this stage.
 #
@@ -510,133 +646,13 @@ def main(workdir, tree, inputs, options, loop_client):
 
     # For x86_64 legacy boot (BIOS) booting
     if basearch == "x86_64":
-        # Install binaries from syslinux package
-        isolinuxfiles = [('/usr/share/syslinux/isolinux.bin', 0o755),
-                         ('/usr/share/syslinux/ldlinux.c32', 0o755),
-                         ('/usr/share/syslinux/libcom32.c32', 0o755),
-                         ('/usr/share/syslinux/libutil.c32', 0o755),
-                         ('/usr/share/syslinux/vesamenu.c32', 0o755)]
-        for src, mode in isolinuxfiles:
-            dst = os.path.join(tmpisoisolinux, os.path.basename(src))
-            shutil.copyfile(src, dst)
-            os.chmod(dst, mode)
-
-        # for legacy bios boot AKA eltorito boot
-        genisoargs += ['-eltorito-boot', 'isolinux/isolinux.bin',
-                       '-eltorito-catalog', 'isolinux/boot.cat',
-                       '-no-emul-boot',
-                       '-boot-load-size', '4',
-                       '-boot-info-table']
-
+        genisoargs += genisoargs_x86_64(tmpisoisolinux)
     elif basearch == "ppc64le":
-        os.makedirs(os.path.join(tmpisoroot, 'boot/grub'))
-        # can be EFI/fedora or EFI/redhat
-        grubpath = ensure_glob(os.path.join(tmpisoroot, 'EFI/*/grub.cfg'))
-        if len(grubpath) != 1:
-            raise ValueError(f'Found != 1 grub.cfg files: {grubpath}')
-        shutil.move(grubpath[0], os.path.join(tmpisoroot, 'boot/grub/grub.cfg'))
-        for f in kargs_json['files']:
-            if re.match('^EFI/.*/grub.cfg$', f['path']):
-                f['path'] = 'boot/grub/grub.cfg'
-
-        # safely remove things we don't need in the final ISO tree
-        for d in ['EFI', 'isolinux']:
-            shutil.rmtree(os.path.join(tmpisoroot, d))
-
-        # grub2-mkrescue is a wrapper around xorriso
-        genisoargs = ['grub2-mkrescue', '-volid', volid]
+        genisoargs = genisoargs_ppc64le(tmpisoroot, kargs_json, volid)
     elif basearch == "s390x":
-        # Reserve 32MB for the kernel, starting memory address of the initramfs
-        # See https://github.com/weldr/lorax/blob/master/share/templates.d/99-generic/s390.tmpl
-        INITRD_ADDRESS = '0x02000000'
-        lorax_templates = '/usr/share/lorax/templates.d/99-generic/config_files/s390'
-        shutil.copy(os.path.join(lorax_templates, 'redhat.exec'), tmpisoimages)
-        with open(os.path.join(lorax_templates, 'generic.ins'), 'r', encoding='utf8') as fp1:
-            with open(os.path.join(tmpisoroot, 'generic.ins'), 'w', encoding='utf8') as fp2:
-                _ = [fp2.write(line.replace('@INITRD_LOAD_ADDRESS@', INITRD_ADDRESS)) for line in fp1]
-        for prmfile in ['cdboot.prm', 'genericdvd.prm', 'generic.prm']:
-            with open(os.path.join(tmpisoimages, prmfile), 'w', encoding='utf8') as fp1:
-                with open(os.path.join(tmpisoroot, 'zipl.prm'), 'r', encoding='utf8') as fp2:
-                    fp1.write(fp2.read().strip())
-
-        # s390x's z/VM CMS files are limited to 8 char for filenames and extensions
-        # Also it is nice to keep naming convetion with Fedora/RHEL for existing users and code
-        kernel_dest = os.path.join(tmpisoimagespxe, 'kernel.img')
-        shutil.move(os.path.join(tmpisoimagespxe, kernel_img), kernel_dest)
-        kernel_img = 'kernel.img'
-
-        if test_fixture:
-            # truncate it to 128k so it includes the offsets to the initrd and kargs
-            # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L24
-            with open(kernel_dest, 'rb+') as f:
-                f.truncate(128 * 1024)
-            with open(iso_initramfs, 'rb+') as f:
-                f.truncate(1024)
-
-        # On s390x, we reserve space for the Ignition config in the initrd
-        # image directly since the bootloader doesn't support multiple initrds.
-        # We do this by inflating the initramfs just for the duration of the
-        # `mk-s390image` call.
-        initramfs_size = os.stat(iso_initramfs).st_size
-        # sanity-check it's 4-byte aligned (see align_initrd_for_uncompressed_append)
-        assert initramfs_size % 4 == 0
-
-        # combine kernel, initramfs and cmdline using the mk-s390image tool
-        os.truncate(iso_initramfs, initramfs_size + IGNITION_IMG_SIZE)
-        subprocess.check_call(['/usr/bin/mk-s390image',
-                               kernel_dest,
-                               os.path.join(tmpisoimages, 'cdboot.img'),
-                               '-r', iso_initramfs,
-                               '-p', os.path.join(tmpisoimages, 'cdboot.prm')])
-        os.truncate(iso_initramfs, initramfs_size)
-
-        # Get the kargs and initramfs offsets in the cdboot.img. For more info, see:
-        # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L23
-        CDBOOT_IMG_OFFS_INITRD_START_BYTES = 66568
-        CDBOOT_IMG_OFFS_KARGS_START_BYTES = 66688
-        CDBOOT_IMG_OFFS_KARGS_MAX_SIZE = 896
-        with open(os.path.join(tmpisoimages, 'cdboot.img'), 'rb') as f:
-            f.seek(CDBOOT_IMG_OFFS_INITRD_START_BYTES)
-            offset = struct.unpack(">Q", f.read(8))[0]
-
-            # sanity-check we're at the right spot by comparing a few bytes
-            f.seek(offset)
-            with open(iso_initramfs, 'rb') as canonical:
-                if f.read(1024) != canonical.read(1024):
-                    raise ValueError(f"expected initrd at offset {offset}")
-
-            igninfo_json = {
-                'file': 'images/cdboot.img',
-                'offset': offset + initramfs_size,
-                'length': IGNITION_IMG_SIZE,
-            }
-
-            # kargs are part of 'images/cdboot.img' blob
-            kargs_json['files'].append({
-                'path': 'images/cdboot.img',
-                'offset': CDBOOT_IMG_OFFS_KARGS_START_BYTES,
-                'pad': '\0',
-                'end': '\0',
-            })
-            kargs_json.update(
-                size=CDBOOT_IMG_OFFS_KARGS_MAX_SIZE,
-            )
-        # generate .addrsize file for LPAR
-        with open(os.path.join(tmpisoimages, 'initrd.addrsize'), 'wb') as addrsize:
-            addrsize_data = struct.pack(">iiii", 0, int(INITRD_ADDRESS, 16), 0,
-                                        os.stat(iso_initramfs).st_size)
-            addrsize.write(addrsize_data)
-
-        # safely remove things we don't need in the final ISO tree
-        for d in ['EFI', 'isolinux']:
-            shutil.rmtree(os.path.join(tmpisoroot, d))
-
-        genisoargs = ['/usr/bin/xorrisofs', '-verbose',
-                      '-volid', volid,
-                      '-volset', f"{name_version}",
-                      '-rational-rock', '-J', '-joliet-long',
-                      '-no-emul-boot', '-eltorito-boot',
-                      os.path.join(os.path.relpath(tmpisoimages, tmpisoroot), 'cdboot.img')]
+        genisoargs = genisoargs_s390x(tmpisoimages, tmpisoroot, tmpisoimagespxe, kernel_img, test_fixture,
+                                      iso_initramfs, volid, name_version)
+        igninfo_json = update_image_offsets(tmpisoimages, iso_initramfs, kargs_json)
 
     # Drop zipl.prm as it was either unused (!s390x) or is now no longer
     # needed (s390x)

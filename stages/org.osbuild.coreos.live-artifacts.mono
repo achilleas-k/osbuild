@@ -314,6 +314,112 @@ def get_cdbootimg_offset(tmpisoimages, iso_initramfs, kargs_json):
     return offset
 
 
+def mkefiboot(workdir, tmpisoroot, tmpisoimages, deployed_tree, kargs_json, volid, loop_client):
+    """
+    Creates an efi boot image, required for EFI booting the ISO.
+
+    Returns the path to the image file.
+    """
+    # Create the efiboot.img file. This is a fat32 formatted
+    # filesystem that contains all the files needed for EFI boot
+    # from an ISO.
+    with tempfile.TemporaryDirectory():
+
+        # In restrictive environments, setgid, setuid and ownership changes
+        # may be restricted. This sets the file ownership to root and
+        # removes the setgid and setuid bits in the tarball.
+        def strip(tarinfo):
+            tarinfo.uid = 0
+            tarinfo.gid = 0
+            if tarinfo.isdir():
+                tarinfo.mode = 0o755
+            elif tarinfo.isfile():
+                tarinfo.mode = 0o0644
+            return tarinfo
+
+        tmpimageefidir = os.path.join(workdir, "efi")
+        shutil.copytree(os.path.join(deployed_tree, 'usr/lib/bootupd/updates/EFI'), tmpimageefidir)
+
+        # Find name of vendor directory
+        vendor_ids = [n for n in os.listdir(tmpimageefidir) if n != "BOOT"]
+        if len(vendor_ids) != 1:
+            raise ValueError(f"did not find exactly one EFI vendor ID: {vendor_ids}")
+        vendor_id = vendor_ids[0]
+
+        # Always replace live/EFI/{vendor} to actual live/EFI/{vendor_id}
+        # https://github.com/openshift/os/issues/954
+        dfd = os.open(tmpisoroot, os.O_RDONLY)
+        grubfilepath = ensure_glob('EFI/*/grub.cfg', dir_fd=dfd)
+        if len(grubfilepath) != 1:
+            raise ValueError(f'Found != 1 grub.cfg files: {grubfilepath}')
+        srcpath = os.path.dirname(grubfilepath[0])
+        if srcpath != f'EFI/{vendor_id}':
+            print(f"Renaming '{srcpath}' to 'EFI/{vendor_id}'")
+            os.rename(srcpath, f"EFI/{vendor_id}", src_dir_fd=dfd, dst_dir_fd=dfd)
+            # And update kargs.json
+            for file in kargs_json['files']:
+                if file['path'] == grubfilepath[0]:
+                    file['path'] = f'EFI/{vendor_id}/grub.cfg'
+        os.close(dfd)
+
+        # Delete fallback and its CSV file.  Its purpose is to create
+        # EFI boot variables, which we don't want when booting from
+        # removable media.
+        #
+        # A future shim release will merge fallback.efi into the main
+        # shim binary and enable the fallback behavior when the CSV
+        # exists.  But for now, fail if fallback.efi is missing.
+        for path in ensure_glob(os.path.join(tmpimageefidir, "BOOT", "fb*.efi")):
+            os.unlink(path)
+        for path in ensure_glob(os.path.join(tmpimageefidir, vendor_id, "BOOT*.CSV")):
+            os.unlink(path)
+
+        # Drop vendor copies of shim; we already have it in BOOT*.EFI in
+        # BOOT
+        for path in ensure_glob(os.path.join(tmpimageefidir, vendor_id, "shim*.efi")):
+            os.unlink(path)
+
+        # Consolidate remaining files into BOOT.  shim needs GRUB to be
+        # there, and the rest doesn't hurt.
+        for path in ensure_glob(os.path.join(tmpimageefidir, vendor_id, "*")):
+            shutil.move(path, os.path.join(tmpimageefidir, "BOOT"))
+        os.rmdir(os.path.join(tmpimageefidir, vendor_id))
+
+        # Inject a stub grub.cfg pointing to the one in the main ISO image.
+        #
+        # When booting via El Torito, this stub is not used; GRUB reads
+        # the ISO image directly using its own ISO support.  This
+        # happens when booting from a CD device, or when the ISO is
+        # copied to a USB stick and booted on EFI firmware which prefers
+        # to boot a hard disk from an El Torito image if it has one.
+        # EDK II in QEMU behaves this way.
+        #
+        # This stub is used with EFI firmware which prefers to boot a
+        # hard disk from an ESP, or which cannot boot a hard disk via El
+        # Torito at all.  In that case, GRUB thinks it booted from a
+        # partition of the disk (a fake ESP created by isohybrid,
+        # pointing to efiboot.img) and needs a grub.cfg there.
+        with open(os.path.join(tmpimageefidir, "BOOT", "grub.cfg"), "w", encoding='utf8') as fh:
+            fh.write(f'''search --label "{volid}" --set root --no-floppy
+set prefix=($root)/EFI/{vendor_id}
+echo "Booting via ESP..."
+configfile $prefix/grub.cfg
+boot
+''')
+
+        # Install binaries from boot partition
+        # Manually construct the tarball to ensure proper permissions and ownership
+        efitarfile = tempfile.NamedTemporaryFile(suffix=".tar")
+        with tarfile.open(efitarfile.name, "w:", dereference=True) as tar:
+            tar.add(tmpimageefidir, arcname="/EFI", filter=strip)
+
+        # Create the efiboot.img file in the images/ dir
+        efibootfile = os.path.join(tmpisoimages, 'efiboot.img')
+        make_efi_bootfile(loop_client, input_tarball=efitarfile.name, output_efiboot_img=efibootfile)
+
+    return "images/efiboot.img"
+
+
 # Here we will generate the 4 Live/PXE CoreOS artifacts.
 # There are four files created and exported from this stage.
 #
@@ -662,106 +768,8 @@ def main(workdir, tree, inputs, options, loop_client):
 
     # For x86_64 and aarch64 UEFI booting
     if basearch in ("x86_64", "aarch64"):
-        # Create the efiboot.img file. This is a fat32 formatted
-        # filesystem that contains all the files needed for EFI boot
-        # from an ISO.
-        with tempfile.TemporaryDirectory():
-
-            # In restrictive environments, setgid, setuid and ownership changes
-            # may be restricted. This sets the file ownership to root and
-            # removes the setgid and setuid bits in the tarball.
-            def strip(tarinfo):
-                tarinfo.uid = 0
-                tarinfo.gid = 0
-                if tarinfo.isdir():
-                    tarinfo.mode = 0o755
-                elif tarinfo.isfile():
-                    tarinfo.mode = 0o0644
-                return tarinfo
-
-            tmpimageefidir = os.path.join(workdir, "efi")
-            shutil.copytree(os.path.join(deployed_tree, 'usr/lib/bootupd/updates/EFI'), tmpimageefidir)
-
-            # Find name of vendor directory
-            vendor_ids = [n for n in os.listdir(tmpimageefidir) if n != "BOOT"]
-            if len(vendor_ids) != 1:
-                raise ValueError(f"did not find exactly one EFI vendor ID: {vendor_ids}")
-            vendor_id = vendor_ids[0]
-
-            # Always replace live/EFI/{vendor} to actual live/EFI/{vendor_id}
-            # https://github.com/openshift/os/issues/954
-            dfd = os.open(tmpisoroot, os.O_RDONLY)
-            grubfilepath = ensure_glob('EFI/*/grub.cfg', dir_fd=dfd)
-            if len(grubfilepath) != 1:
-                raise ValueError(f'Found != 1 grub.cfg files: {grubfilepath}')
-            srcpath = os.path.dirname(grubfilepath[0])
-            if srcpath != f'EFI/{vendor_id}':
-                print(f"Renaming '{srcpath}' to 'EFI/{vendor_id}'")
-                os.rename(srcpath, f"EFI/{vendor_id}", src_dir_fd=dfd, dst_dir_fd=dfd)
-                # And update kargs.json
-                for file in kargs_json['files']:
-                    if file['path'] == grubfilepath[0]:
-                        file['path'] = f'EFI/{vendor_id}/grub.cfg'
-            os.close(dfd)
-
-            # Delete fallback and its CSV file.  Its purpose is to create
-            # EFI boot variables, which we don't want when booting from
-            # removable media.
-            #
-            # A future shim release will merge fallback.efi into the main
-            # shim binary and enable the fallback behavior when the CSV
-            # exists.  But for now, fail if fallback.efi is missing.
-            for path in ensure_glob(os.path.join(tmpimageefidir, "BOOT", "fb*.efi")):
-                os.unlink(path)
-            for path in ensure_glob(os.path.join(tmpimageefidir, vendor_id, "BOOT*.CSV")):
-                os.unlink(path)
-
-            # Drop vendor copies of shim; we already have it in BOOT*.EFI in
-            # BOOT
-            for path in ensure_glob(os.path.join(tmpimageefidir, vendor_id, "shim*.efi")):
-                os.unlink(path)
-
-            # Consolidate remaining files into BOOT.  shim needs GRUB to be
-            # there, and the rest doesn't hurt.
-            for path in ensure_glob(os.path.join(tmpimageefidir, vendor_id, "*")):
-                shutil.move(path, os.path.join(tmpimageefidir, "BOOT"))
-            os.rmdir(os.path.join(tmpimageefidir, vendor_id))
-
-            # Inject a stub grub.cfg pointing to the one in the main ISO image.
-            #
-            # When booting via El Torito, this stub is not used; GRUB reads
-            # the ISO image directly using its own ISO support.  This
-            # happens when booting from a CD device, or when the ISO is
-            # copied to a USB stick and booted on EFI firmware which prefers
-            # to boot a hard disk from an El Torito image if it has one.
-            # EDK II in QEMU behaves this way.
-            #
-            # This stub is used with EFI firmware which prefers to boot a
-            # hard disk from an ESP, or which cannot boot a hard disk via El
-            # Torito at all.  In that case, GRUB thinks it booted from a
-            # partition of the disk (a fake ESP created by isohybrid,
-            # pointing to efiboot.img) and needs a grub.cfg there.
-            with open(os.path.join(tmpimageefidir, "BOOT", "grub.cfg"), "w", encoding='utf8') as fh:
-                fh.write(f'''search --label "{volid}" --set root --no-floppy
-set prefix=($root)/EFI/{vendor_id}
-echo "Booting via ESP..."
-configfile $prefix/grub.cfg
-boot
-''')
-
-            # Install binaries from boot partition
-            # Manually construct the tarball to ensure proper permissions and ownership
-            efitarfile = tempfile.NamedTemporaryFile(suffix=".tar")
-            with tarfile.open(efitarfile.name, "w:", dereference=True) as tar:
-                tar.add(tmpimageefidir, arcname="/EFI", filter=strip)
-
-            # Create the efiboot.img file in the images/ dir
-            efibootfile = os.path.join(tmpisoimages, 'efiboot.img')
-            make_efi_bootfile(loop_client, input_tarball=efitarfile.name, output_efiboot_img=efibootfile)
-
-        genisoargs += ['-eltorito-alt-boot',
-                       '-efi-boot', 'images/efiboot.img',
-                       '-no-emul-boot']
+        efiboot_path = mkefiboot(workdir, tmpisoroot, tmpisoimages, deployed_tree, kargs_json, volid, loop_client)
+        genisoargs += ['-eltorito-alt-boot', '-efi-boot', efiboot_path, '-no-emul-boot']
 
     # We've done everything that might affect kargs, so filter out any files
     # that no longer exist and write out the kargs JSON if it lists any files

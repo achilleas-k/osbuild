@@ -284,9 +284,7 @@ def genisoargs_s390x(workdir, kernel_img, test_fixture, volid, name_version):
             os.path.join(os.path.relpath(tmpisoimages, tmpisoroot), 'cdboot.img')]
 
 
-def genisoimage(workdir, deployed_tree, loop_client, kargs_file, igninfo_file, kernel_img, basearch, kargs_json,
-                igninfo_json, test_fixture, volid, name_version, output_kernel, output_initramfs, iso_rootfs,
-                output_rootfs):
+def genisoimage(workdir, tree, filenames, deployed_tree, loop_client, kernel_img, img_metal, iso_rootfs, version, blsentry_kargs):
     """
     Generate the ISO image.
     Based on the Lorax templates [1].
@@ -295,12 +293,45 @@ def genisoimage(workdir, deployed_tree, loop_client, kargs_file, igninfo_file, k
     [1] https://github.com/weldr/lorax/tree/master/share/templates.d/99-generic
     [2] https://fedoraproject.org/wiki/User:Pjones/BootableCDsForBIOSAndUEFI
     """
+
+    base_name = get_os_name(tree=deployed_tree)
+    name_version = f'{base_name}-{version}'
+    # The short volume ID can only be 32 characters (bytes probably). We may in
+    # the future want to shorten this more intelligently, otherwise we truncate the
+    # version which may impede uniqueness.
+    volid = name_version[0:32]
+
     genisoargs = ['/usr/bin/genisoimage', '-verbose',
                   '-V', volid,
                   '-volset', f"{name_version}",
                   # For  greater portability, consider using both
                   # Joliet and Rock Ridge extensions. Umm, OK :)
                   '-rational-rock', '-J', '-joliet-long']
+
+    kargs_file = 'kargs.json'
+    igninfo_file = 'igninfo.json'
+    output_kernel = os.path.join(tree, filenames['live-kernel'])
+    output_rootfs = os.path.join(tree, filenames['live-rootfs'])
+    output_initramfs = os.path.join(tree, filenames['live-initramfs'])
+    test_fixture = check_for_test_fixture(deployed_tree)
+    basearch = os.uname().machine
+
+    kargs_json = init_iso_kargs(deployed_tree, workdir, blsentry_kargs, volid)
+
+    # Add placeholder for Ignition CPIO file.  This allows an external tool,
+    # `coreos-installer iso ignition embed`, to modify an existing ISO image
+    # to embed a user's custom Ignition config.  The tool wraps the Ignition
+    # config in a cpio.xz and write it directly into this file in the ISO
+    # image.  The cpio.xz will be read into the initramfs filesystem at
+    # runtime and the Ignition Dracut module will ensure that the config is
+    # moved where Ignition will see it. We only handle !s390x here since that's
+    # the simple case (where layered initrds are supported). The s390x case is
+    # handled lower down
+    igninfo_json = {}
+    if basearch != 's390x':
+        with open(os.path.join(mkpath_tmpisoimages(workdir), 'ignition.img'), 'wb') as fdst:
+            fdst.write(bytes(IGNITION_IMG_SIZE))
+        igninfo_json = {'file': 'images/ignition.img'}
 
     # For x86_64 legacy boot (BIOS) booting
     if basearch == "x86_64":
@@ -533,13 +564,14 @@ boot
     return "images/efiboot.img"
 
 
-def mksquashfs_metal(workdir, img_metal, loop_client, basearch, squashfs_compression):
+def mksquashfs_metal(workdir, img_metal, loop_client):
     """
     Mounts a copy of the metal image and modifies it accordingly to create a (squashfs) rootfs from its contents for the
     live ISO.
 
     Returns the bls entry kernel arguments for the ISO bootloader.
     """
+    squashfs_compression = 'zstd'
     tmp_squashfs_dir = os.path.join(workdir, 'tmp-squashfs-dir')
     os.mkdir(tmp_squashfs_dir)
 
@@ -557,7 +589,7 @@ def mksquashfs_metal(workdir, img_metal, loop_client, basearch, squashfs_compres
         subprocess.check_call(['mount', '-o', 'rw', loopdev + 'p4', tmp_squashfs_dir])
         subprocess.check_call(['mount', '-o', 'rw', loopdev + 'p3',
                                os.path.join(tmp_squashfs_dir, 'boot')])
-        if basearch in ['x86_64', 'aarch64']:
+        if os.uname().machine in ['x86_64', 'aarch64']:
             subprocess.check_call(['mount', '-o', 'rw', loopdev + 'p2',
                                    os.path.join(tmp_squashfs_dir, 'boot/efi')])
         squashfs_dir_umount_needed = True
@@ -841,13 +873,6 @@ def main(workdir, tree, inputs, options, loop_client):
     contains all the files from a full CoreOS system.
     """
 
-    squashfs_compression = 'zstd'
-    basearch = os.uname().machine
-    filenames = options['filenames']
-    output_iso = os.path.join(tree, filenames['live-iso'])
-    output_kernel = os.path.join(tree, filenames['live-kernel'])
-    output_rootfs = os.path.join(tree, filenames['live-rootfs'])
-    output_initramfs = os.path.join(tree, filenames['live-initramfs'])
     img_metal, img_metal4k = parse_metal_inputs(inputs)
     # The deployed tree input is a deployment tree just as it would
     # appear on a booted OSTree system. We copy some files out of this
@@ -855,25 +880,15 @@ def main(workdir, tree, inputs, options, loop_client):
     # images anyway. We also use it as a chroot when we run `coreos-installer`.
     deployed_tree = inputs['deployed-tree']['path']
 
-    test_fixture = check_for_test_fixture(deployed_tree)
-
     # Determine some basic information about the CoreOS we are operating on.
-    base_name = get_os_name(tree=deployed_tree)
     os_release = osrelease.parse_files(os.path.join(deployed_tree, 'etc', 'os-release'))
     version = os_release['OSTREE_VERSION']
-    name_version = f'{base_name}-{version}'
-    # The short volume ID can only be 32 characters (bytes probably). We may in
-    # the future want to shorten this more intelligently, otherwise we truncate the
-    # version which may impede uniqueness.
-    volid = name_version[0:32]
 
     mk_workdirs(workdir)
 
-    # convention for kernel and initramfs names and a few others
+    # convention for kernel and rootfs names
     kernel_img = 'vmlinuz'
     rootfs_img = 'rootfs.img'
-    kargs_file = 'kargs.json'
-    igninfo_file = 'igninfo.json'
 
     # Find the directory under `/usr/lib/modules/<kver>` where the
     # kernel/initrd live. It will be the only entity in there.
@@ -910,21 +925,6 @@ def main(workdir, tree, inputs, options, loop_client):
     with open(stamppath, 'w', encoding='utf8') as fh:
         fh.write(version + '\n')
 
-    # Add placeholder for Ignition CPIO file.  This allows an external tool,
-    # `coreos-installer iso ignition embed`, to modify an existing ISO image
-    # to embed a user's custom Ignition config.  The tool wraps the Ignition
-    # config in a cpio.xz and write it directly into this file in the ISO
-    # image.  The cpio.xz will be read into the initramfs filesystem at
-    # runtime and the Ignition Dracut module will ensure that the config is
-    # moved where Ignition will see it. We only handle !s390x here since that's
-    # the simple case (where layered initrds are supported). The s390x case is
-    # handled lower down
-    igninfo_json = {}
-    if basearch != 's390x':
-        with open(os.path.join(mkpath_tmpisoimages(workdir), 'ignition.img'), 'wb') as fdst:
-            fdst.write(bytes(IGNITION_IMG_SIZE))
-        igninfo_json = {'file': 'images/ignition.img'}
-
     # Generate JSON file that lists OS features available to
     # coreos-installer {iso|pxe} customize.  Put it in the initramfs for
     # pxe customize and the ISO for iso customize.
@@ -938,7 +938,7 @@ def main(workdir, tree, inputs, options, loop_client):
 
     mk_osmet_files(deployed_tree, img_metal, img_metal4k, loop_client, workdir, os_release)
 
-    blsentry_kargs = mksquashfs_metal(workdir, img_metal, loop_client, basearch, squashfs_compression)
+    blsentry_kargs = mksquashfs_metal(workdir, img_metal, loop_client)
 
     # Generate rootfs image
     iso_rootfs = os.path.join(tmpisoimagespxe, rootfs_img)
@@ -958,12 +958,11 @@ def main(workdir, tree, inputs, options, loop_client):
     # Add common content
     extend_initramfs(initramfs=mkpath_iso_initramfs(workdir), tree=tmpinitrd_base)
 
-    kargs_json = init_iso_kargs(deployed_tree, workdir, blsentry_kargs, volid)
-
-    tmpisofile = genisoimage(workdir, deployed_tree, loop_client, kargs_file, igninfo_file, kernel_img, basearch,
-                             kargs_json, igninfo_json, test_fixture, volid, name_version, output_kernel,
-                             output_initramfs, iso_rootfs, output_rootfs)
+    filenames = options['filenames']
+    tmpisofile = genisoimage(workdir, tree, filenames, deployed_tree, loop_client, kernel_img, img_metal, iso_rootfs,
+                             version, blsentry_kargs)
     # Copy the ISO to the final output location
+    output_iso = os.path.join(tree, filenames['live-iso'])
     shutil.move(tmpisofile, output_iso)
 
 

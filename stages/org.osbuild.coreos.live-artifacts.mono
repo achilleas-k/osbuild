@@ -288,6 +288,114 @@ def genisoargs_s390x(workdir, kernel_img, test_fixture, volid, name_version):
             os.path.join(os.path.relpath(tmpisoimages, tmpisoroot), 'cdboot.img')]
 
 
+def genisoimage(workdir, deployed_tree, loop_client, kargs_file, igninfo_file, kernel_img, basearch, kargs_json,
+                igninfo_json, test_fixture, volid, name_version, output_kernel, output_initramfs, iso_rootfs,
+                output_rootfs):
+    """
+    Generate the ISO image.
+    Based on the Lorax templates [1].
+    A lot of good information can be found on the Fedora wiki [2].
+
+    [1] https://github.com/weldr/lorax/tree/master/share/templates.d/99-generic
+    [2] https://fedoraproject.org/wiki/User:Pjones/BootableCDsForBIOSAndUEFI
+    """
+    genisoargs = ['/usr/bin/genisoimage', '-verbose',
+                  '-V', volid,
+                  '-volset', f"{name_version}",
+                  # For  greater portability, consider using both
+                  # Joliet and Rock Ridge extensions. Umm, OK :)
+                  '-rational-rock', '-J', '-joliet-long']
+
+    # For x86_64 legacy boot (BIOS) booting
+    if basearch == "x86_64":
+        genisoargs += genisoargs_x86_64(workdir)
+    elif basearch == "ppc64le":
+        genisoargs = genisoargs_ppc64le(workdir, kargs_json, volid)
+    elif basearch == "s390x":
+        genisoargs = genisoargs_s390x(workdir, kernel_img, test_fixture, volid, name_version)
+        igninfo_json = update_image_offsets(workdir, kargs_json)
+        # This name change happened in the code extracted into genisoargs_s390x(). Now it's part of the function, so it
+        # doesn't leak into the main() scope and we need to set it here again. Splitting the genisoargs_s390x() function
+        # further, making the file rename part its own function if possible, will fix this issue.
+        kernel_img = 'kernel.img'
+
+    # Drop zipl.prm as it was either unused (!s390x) or is now no longer
+    # needed (s390x)
+    os.unlink(os.path.join(mkpath_tmpisoroot(workdir), 'zipl.prm'))
+
+    # For x86_64 and aarch64 UEFI booting
+    if basearch in ("x86_64", "aarch64"):
+        efiboot_path = mkefiboot(workdir, deployed_tree, kargs_json, volid, loop_client)
+        genisoargs += ['-eltorito-alt-boot', '-efi-boot', efiboot_path, '-no-emul-boot']
+
+    # We've done everything that might affect kargs, so filter out any files
+    # that no longer exist and write out the kargs JSON if it lists any files
+    kargs_json['files'] = [f for f in kargs_json['files']
+                           if os.path.exists(os.path.join(mkpath_tmpisoroot(workdir), f['path']))]
+    kargs_json['files'].sort(key=lambda f: f['path'])
+    if kargs_json['files']:
+        # Store the location of "karg embed areas" for use by
+        # `coreos-installer iso kargs modify`
+        with open(os.path.join(mkpath_tmpisocoreos(workdir), kargs_file), 'w', encoding='utf8') as fh:
+            json.dump(kargs_json, fh, indent=2, sort_keys=True)
+            fh.write('\n')
+
+    # Write out the igninfo.json file. This is used by coreos-installer to know
+    # how to embed the Ignition config.
+    with open(os.path.join(mkpath_tmpisocoreos(workdir), igninfo_file), 'w', encoding='utf8') as fh:
+        json.dump(igninfo_json, fh, indent=2, sort_keys=True)
+        fh.write('\n')
+
+    # Define inputs and outputs
+    genisoargs_final = genisoargs + ['-o', mkpath_tmpisofile(workdir), mkpath_tmpisoroot(workdir)]
+
+    miniso_data = os.path.join(mkpath_tmpisocoreos(workdir), "miniso.dat")
+    with open(miniso_data, 'wb') as f:
+        f.truncate(MINISO_DATA_FILE_SIZE)
+
+    if test_fixture:
+        trim_for_test_fixtures(workdir)
+
+    subprocess.check_call(genisoargs_final)
+
+    # Add MBR, and GPT with ESP, for x86_64 BIOS/UEFI boot when ISO is
+    # copied to a USB stick
+    if basearch == "x86_64":
+        subprocess.check_call(['/usr/bin/isohybrid', '--uefi', mkpath_tmpisofile(workdir)])
+
+    # Copy to final output locations the things that won't change from
+    # this point forward. We do it here because we unlink the the rootfs below.
+    cp_reflink(os.path.join(mkpath_tmpisoimagespxe(workdir), kernel_img), output_kernel)
+    cp_reflink(mkpath_iso_initramfs(workdir), output_initramfs)
+    cp_reflink(iso_rootfs, output_rootfs)
+
+    # Here we generate a minimal ISO purely for the purpose of
+    # calculating some data such that, given the full live ISO in
+    # future, coreos-installer can regenerate a minimal ISO.
+    #
+    # We first generate the minimal ISO and then call coreos-installer
+    # pack with both the minimal and full ISO as arguments. This will
+    # delete the minimal ISO (i.e. --consume) and update in place the
+    # full Live ISO.
+    #
+    # The only difference in the minimal ISO is that we drop two files.
+    # We keep everything else the same to maximize file matching between
+    # the two versions so we can get the smallest delta. E.g. we keep the
+    # `coreos.liveiso` karg, even though the miniso doesn't need it.
+    # coreos-installer takes care of removing it.
+    os.unlink(iso_rootfs)
+    os.unlink(miniso_data)
+    tmpisofile = mkpath_tmpisofile(workdir)
+    subprocess.check_call(genisoargs + ['-o', f'{tmpisofile}.minimal', mkpath_tmpisoroot(workdir)])
+    if basearch == "x86_64":
+        subprocess.check_call(['/usr/bin/isohybrid', '--uefi', f'{tmpisofile}.minimal'])
+    with Chroot(deployed_tree, bind_mounts=["/run"]) as chroot:
+        chroot.run(['coreos-installer', 'pack', 'minimal-iso', tmpisofile,
+                   f'{tmpisofile}.minimal', '--consume'], check=True)
+
+    return tmpisofile
+
+
 def update_image_offsets(workdir, kargs_json):
     # Get the kargs and initramfs offsets in the cdboot.img. For more info, see:
     # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L23
@@ -696,7 +804,6 @@ def mk_workdirs(workdir):
 
 
 def main(workdir, tree, inputs, options, loop_client):
-    # pylint: disable=too-many-statements,too-many-branches
     """
     Here we will generate the 4 Live/PXE CoreOS artifacts.
     There are four files created and exported from this stage.
@@ -801,6 +908,7 @@ def main(workdir, tree, inputs, options, loop_client):
     # moved where Ignition will see it. We only handle !s390x here since that's
     # the simple case (where layered initrds are supported). The s390x case is
     # handled lower down
+    igninfo_json = {}
     if basearch != 's390x':
         with open(os.path.join(mkpath_tmpisoimages(workdir), 'ignition.img'), 'wb') as fdst:
             fdst.write(bytes(IGNITION_IMG_SIZE))
@@ -841,105 +949,9 @@ def main(workdir, tree, inputs, options, loop_client):
 
     kargs_json = init_iso_kargs(deployed_tree, workdir, blsentry_kargs, volid)
 
-    # These sections are based on lorax templates
-    # see https://github.com/weldr/lorax/tree/master/share/templates.d/99-generic
-
-    # Generate the ISO image. Lots of good info here:
-    # https://fedoraproject.org/wiki/User:Pjones/BootableCDsForBIOSAndUEFI
-    genisoargs = ['/usr/bin/genisoimage', '-verbose',
-                  '-V', volid,
-                  '-volset', f"{name_version}",
-                  # For  greater portability, consider using both
-                  # Joliet and Rock Ridge extensions. Umm, OK :)
-                  '-rational-rock', '-J', '-joliet-long']
-
-    # For x86_64 legacy boot (BIOS) booting
-    if basearch == "x86_64":
-        genisoargs += genisoargs_x86_64(workdir)
-    elif basearch == "ppc64le":
-        genisoargs = genisoargs_ppc64le(workdir, kargs_json, volid)
-    elif basearch == "s390x":
-        genisoargs = genisoargs_s390x(workdir, kernel_img, test_fixture, volid, name_version)
-        igninfo_json = update_image_offsets(workdir, kargs_json)
-        # This name change happened in the code extracted into genisoargs_s390x(). Now it's part of the function, so it
-        # doesn't leak into the main() scope and we need to set it here again. Splitting the genisoargs_s390x() function
-        # further, making the file rename part its own function if possible, will fix this issue.
-        kernel_img = 'kernel.img'
-
-    # Drop zipl.prm as it was either unused (!s390x) or is now no longer
-    # needed (s390x)
-    os.unlink(os.path.join(mkpath_tmpisoroot(workdir), 'zipl.prm'))
-
-    # For x86_64 and aarch64 UEFI booting
-    if basearch in ("x86_64", "aarch64"):
-        efiboot_path = mkefiboot(workdir, deployed_tree, kargs_json, volid, loop_client)
-        genisoargs += ['-eltorito-alt-boot', '-efi-boot', efiboot_path, '-no-emul-boot']
-
-    # We've done everything that might affect kargs, so filter out any files
-    # that no longer exist and write out the kargs JSON if it lists any files
-    kargs_json['files'] = [f for f in kargs_json['files']
-                           if os.path.exists(os.path.join(mkpath_tmpisoroot(workdir), f['path']))]
-    kargs_json['files'].sort(key=lambda f: f['path'])
-    if kargs_json['files']:
-        # Store the location of "karg embed areas" for use by
-        # `coreos-installer iso kargs modify`
-        with open(os.path.join(mkpath_tmpisocoreos(workdir), kargs_file), 'w', encoding='utf8') as fh:
-            json.dump(kargs_json, fh, indent=2, sort_keys=True)
-            fh.write('\n')
-
-    # Write out the igninfo.json file. This is used by coreos-installer to know
-    # how to embed the Ignition config.
-    with open(os.path.join(mkpath_tmpisocoreos(workdir), igninfo_file), 'w', encoding='utf8') as fh:
-        json.dump(igninfo_json, fh, indent=2, sort_keys=True)  # pylint: disable=E0601
-        fh.write('\n')
-
-    # Define inputs and outputs
-    genisoargs_final = genisoargs + ['-o', mkpath_tmpisofile(workdir), mkpath_tmpisoroot(workdir)]
-
-    miniso_data = os.path.join(mkpath_tmpisocoreos(workdir), "miniso.dat")
-    with open(miniso_data, 'wb') as f:
-        f.truncate(MINISO_DATA_FILE_SIZE)
-
-    if test_fixture:
-        trim_for_test_fixtures(workdir)
-
-    subprocess.check_call(genisoargs_final)
-
-    # Add MBR, and GPT with ESP, for x86_64 BIOS/UEFI boot when ISO is
-    # copied to a USB stick
-    if basearch == "x86_64":
-        subprocess.check_call(['/usr/bin/isohybrid', '--uefi', mkpath_tmpisofile(workdir)])
-
-    # Copy to final output locations the things that won't change from
-    # this point forward. We do it here because we unlink the the rootfs below.
-    cp_reflink(os.path.join(tmpisoimagespxe, kernel_img), output_kernel)
-    cp_reflink(mkpath_iso_initramfs(workdir), output_initramfs)
-    cp_reflink(iso_rootfs, output_rootfs)
-
-    # Here we generate a minimal ISO purely for the purpose of
-    # calculating some data such that, given the full live ISO in
-    # future, coreos-installer can regenerate a minimal ISO.
-    #
-    # We first generate the minimal ISO and then call coreos-installer
-    # pack with both the minimal and full ISO as arguments. This will
-    # delete the minimal ISO (i.e. --consume) and update in place the
-    # full Live ISO.
-    #
-    # The only difference in the minimal ISO is that we drop two files.
-    # We keep everything else the same to maximize file matching between
-    # the two versions so we can get the smallest delta. E.g. we keep the
-    # `coreos.liveiso` karg, even though the miniso doesn't need it.
-    # coreos-installer takes care of removing it.
-    os.unlink(iso_rootfs)
-    os.unlink(miniso_data)
-    tmpisofile = mkpath_tmpisofile(workdir)
-    subprocess.check_call(genisoargs + ['-o', f'{tmpisofile}.minimal', mkpath_tmpisoroot(workdir)])
-    if basearch == "x86_64":
-        subprocess.check_call(['/usr/bin/isohybrid', '--uefi', f'{tmpisofile}.minimal'])
-    with Chroot(deployed_tree, bind_mounts=["/run"]) as chroot:
-        chroot.run(['coreos-installer', 'pack', 'minimal-iso', tmpisofile,
-                   f'{tmpisofile}.minimal', '--consume'], check=True)
-
+    tmpisofile = genisoimage(workdir, deployed_tree, loop_client, kargs_file, igninfo_file, kernel_img, basearch,
+                             kargs_json, igninfo_json, test_fixture, volid, name_version, output_kernel,
+                             output_initramfs, iso_rootfs, output_rootfs)
     # Copy the ISO to the final output location
     shutil.move(tmpisofile, output_iso)
 

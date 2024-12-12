@@ -243,12 +243,7 @@ def genisoargs_s390x(tmpisoimages, tmpisoroot, tmpisoimagespxe, kernel_img, test
     kernel_img = 'kernel.img'
 
     if test_fixture:
-        # truncate it to 128k so it includes the offsets to the initrd and kargs
-        # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L24
-        with open(kernel_dest, 'rb+') as f:
-            f.truncate(128 * 1024)
-        with open(iso_initramfs, 'rb+') as f:
-            f.truncate(1024)
+        truncate_for_test(kernel_dest, iso_initramfs)
 
     # On s390x, we reserve space for the Ignition config in the initrd
     # image directly since the bootloader doesn't support multiple initrds.
@@ -573,6 +568,60 @@ def init_iso_kargs(deployed_tree, tmpisoroot, blsentry_kargs, volid):
     return kargs_json
 
 
+def check_for_test_fixture(deployed_tree):
+    """
+    For dev/test purposes it is useful to create test fixture ISO
+    images for the coreos-installer CI framework to use [1]. This test
+    fixture is much smaller than an actual ISO and can be stored in git.
+    Determine if the user wants a test fixture ISO created by checking
+    for the coreos-installer-test-fixture file baked in the tree.
+    [1] https://github.com/coreos/coreos-installer/tree/main/fixtures/iso
+
+    NOTE: This should be removed and made part of a unit or integration test.
+    """
+    return os.path.exists(os.path.join(deployed_tree, 'usr/share/coreos-assembler/coreos-installer-test-fixture'))
+
+
+def truncate_for_test(kernel_dest, iso_initramfs):
+    """
+    Truncates the provided files when running with test fixtures.
+    """
+    # truncate it to 128k so it includes the offsets to the initrd and kargs
+    # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L24
+    with open(kernel_dest, 'rb+') as f:
+        f.truncate(128 * 1024)
+    with open(iso_initramfs, 'rb+') as f:
+        f.truncate(1024)
+
+
+def rm_test_fixture(tmpisoimages, tmpisoisolinux, tmpisoimagespxe):
+    """
+    Creates test fixtures, simple text files that are used instead of the actual images (efiboot.img, rootfs.img,
+    initrd.img, and vmlinuz).
+    """
+    with open(os.path.join(tmpisoimages, 'efiboot.img'), 'w', encoding='utf8') as fh:
+        fh.write('efiboot.img\n')
+    with open(os.path.join(tmpisoimagespxe, 'rootfs.img'), 'w', encoding='utf8') as fh:
+        fh.write('rootfs data\n')
+    with open(os.path.join(tmpisoimagespxe, 'initrd.img'), 'w', encoding='utf8') as fh:
+        fh.write('initrd data\n')
+    with open(os.path.join(tmpisoimagespxe, 'vmlinuz'), 'w', encoding='utf8') as fh:
+        fh.write('the kernel\n')
+    # this directory doesn't exist on s390x
+    if os.path.isdir(tmpisoisolinux):
+        with open(os.path.join(tmpisoisolinux, 'isolinux.bin'), 'rb+') as fh:
+            flen = fh.seek(0, 2)
+            fh.truncate(0)
+            fh.truncate(flen)
+            fh.seek(64)
+            # isohybrid checks for this magic
+            fh.write(b'\xfb\xc0\x78\x70')
+        for f in ensure_glob(os.path.join(tmpisoisolinux, '*.c32')):
+            os.unlink(f)
+        for f in ensure_glob(os.path.join(tmpisoisolinux, '*.msg')):
+            os.unlink(f)
+
+
 # Here we will generate the 4 Live/PXE CoreOS artifacts.
 # There are four files created and exported from this stage.
 #
@@ -612,16 +661,7 @@ def main(workdir, tree, inputs, options, loop_client):
     # images anyway. We also use it as a chroot when we run `coreos-installer`.
     deployed_tree = inputs['deployed-tree']['path']
 
-    # For dev/test purposes it is useful to create test fixture ISO
-    # images for the coreos-installer CI framework to use [1]. This test
-    # fixture is much smaller than an actual ISO and can be stored in git.
-    # Determine if the user wants a test fixture ISO created by checking
-    # for the coreos-installer-test-fixture file baked in the tree.
-    # [1] https://github.com/coreos/coreos-installer/tree/main/fixtures/iso
-    test_fixture = os.path.exists(
-        os.path.join(
-            deployed_tree,
-            'usr/share/coreos-assembler/coreos-installer-test-fixture'))
+    test_fixture = check_for_test_fixture(deployed_tree)
 
     # Determine some basic information about the CoreOS we are operating on.
     base_name = get_os_name(tree=deployed_tree)
@@ -814,28 +854,7 @@ def main(workdir, tree, inputs, options, loop_client):
         f.truncate(MINISO_DATA_FILE_SIZE)
 
     if test_fixture:
-        # Replace or delete anything irrelevant to coreos-installer
-        with open(os.path.join(tmpisoimages, 'efiboot.img'), 'w', encoding='utf8') as fh:
-            fh.write('efiboot.img\n')
-        with open(os.path.join(tmpisoimagespxe, 'rootfs.img'), 'w', encoding='utf8') as fh:
-            fh.write('rootfs data\n')
-        with open(os.path.join(tmpisoimagespxe, 'initrd.img'), 'w', encoding='utf8') as fh:
-            fh.write('initrd data\n')
-        with open(os.path.join(tmpisoimagespxe, 'vmlinuz'), 'w', encoding='utf8') as fh:
-            fh.write('the kernel\n')
-        # this directory doesn't exist on s390x
-        if os.path.isdir(tmpisoisolinux):
-            with open(os.path.join(tmpisoisolinux, 'isolinux.bin'), 'rb+') as fh:
-                flen = fh.seek(0, 2)
-                fh.truncate(0)
-                fh.truncate(flen)
-                fh.seek(64)
-                # isohybrid checks for this magic
-                fh.write(b'\xfb\xc0\x78\x70')
-            for f in ensure_glob(os.path.join(tmpisoisolinux, '*.c32')):
-                os.unlink(f)
-            for f in ensure_glob(os.path.join(tmpisoisolinux, '*.msg')):
-                os.unlink(f)
+        rm_test_fixture(tmpisoimages, tmpisoisolinux, tmpisoimagespxe)
 
     subprocess.check_call(genisoargs_final)
 

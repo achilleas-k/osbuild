@@ -238,6 +238,7 @@ def genisoargs_s390x(workdir, kernel_img, test_fixture, volid, name_version):
             with open(os.path.join(tmpisoroot, 'zipl.prm'), 'r', encoding='utf8') as fp2:
                 fp1.write(fp2.read().strip())
 
+    # TODO: check if the kernel.img move can be extracted
     # s390x's z/VM CMS files are limited to 8 char for filenames and extensions
     # Also it is nice to keep naming convetion with Fedora/RHEL for existing users and code
     kernel_dest = os.path.join(mkpath_tmpisoimagespxe(workdir), 'kernel.img')
@@ -865,6 +866,10 @@ def main(workdir, tree, inputs, options, loop_client):
     elif basearch == "s390x":
         genisoargs = genisoargs_s390x(workdir, kernel_img, test_fixture, volid, name_version)
         offset = get_cdbootimg_offset(workdir, kargs_json)
+        # This name change happened in the code extracted into genisoargs_s390x(). Now it's part of the function, so it
+        # doesn't leak into the main() scope and we need to set it here again. Splitting the genisoargs_s390x() function
+        # further, making the file rename part its own function if possible, will fix this issue.
+        kernel_img = 'kernel.img'
 
         igninfo_json = {
             'file': 'images/cdboot.img',

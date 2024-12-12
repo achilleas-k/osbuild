@@ -512,6 +512,71 @@ def mksquashfs_metal(workdir, img_metal, loop_client, basearch, squashfs_compres
     return blsentry_kargs
 
 
+def init_iso_kargs(deployed_tree, tmpisoroot, blsentry_kargs, volid):
+    # Filter kernel arguments for substituting into ISO bootloader
+    kargs_array = [karg for karg in blsentry_kargs
+                   if karg.split('=')[0] not in LIVE_EXCLUDE_KARGS]
+    kargs_array.append(f"coreos.liveiso={volid}")
+    kargs = ' '.join(kargs_array)
+    print(f'Substituting ISO kernel arguments: {kargs}')
+
+    kargs_json = {'files': []}
+    cmdline = ''
+    karg_embed_area_length = 0
+    srcdir_prefix = os.path.join(deployed_tree, 'usr/share/coreos-assembler/live/')
+    # Grab all the contents from the live dir from the configs
+    for srcdir, _, filenames in os.walk(srcdir_prefix):
+        dir_suffix = srcdir.replace(srcdir_prefix, '', 1)
+        dstdir = os.path.join(tmpisoroot, dir_suffix)
+        if not os.path.exists(dstdir):
+            os.mkdir(dstdir)
+        for filename in filenames:
+            # Skip development readmes to avoid confusing users
+            if filename == 'README-devel.md':
+                continue
+            srcfile = os.path.join(srcdir, filename)
+            dstfile = os.path.join(dstdir, filename)
+            # Assumes all files are text
+            with open(srcfile, encoding='utf8') as fh:
+                buf = fh.read()
+            newbuf = buf.replace('@@KERNEL-ARGS@@', kargs)
+            # if we injected kargs, also check for an embed area
+            if buf != newbuf:
+                karg_area_start = re.search(r'@@KERNEL-ARGS@@', buf)
+                buf = newbuf
+                karg_area_end = re.search(r'(#+)# COREOS_KARG_EMBED_AREA\n', buf)
+                if karg_area_end is not None:
+                    file_kargs = buf[karg_area_start.start():karg_area_end.start()]
+                    if len(cmdline) == 0:
+                        cmdline = file_kargs
+                    elif cmdline != file_kargs:
+                        raise ValueError(f'Default cmdline is different: "{cmdline}" != "{file_kargs}"')
+
+                    length = karg_area_end.start() + len(karg_area_end[1]) - karg_area_start.start()
+                    kargs_json['files'].append({
+                        'path': os.path.join(dir_suffix, filename),
+                        'offset': karg_area_start.start(),
+                        'pad': '#',
+                        'end': '\n',
+                    })
+                    if karg_embed_area_length == 0:
+                        karg_embed_area_length = length
+                    elif length != karg_embed_area_length:
+                        raise ValueError(f"Karg embed areas of varying length {kargs_json['files']}")
+            with open(dstfile, 'w', encoding='utf8') as fh:
+                fh.write(buf)
+            shutil.copystat(srcfile, dstfile)
+            print(f'{srcfile} -> {dstfile}')
+
+    if karg_embed_area_length > 0:
+        assert (karg_embed_area_length > len(cmdline))
+        kargs_json.update(
+            size=karg_embed_area_length,
+            default=cmdline.strip(),
+        )
+    return kargs_json
+
+
 # Here we will generate the 4 Live/PXE CoreOS artifacts.
 # There are four files created and exported from this stage.
 #
@@ -688,67 +753,7 @@ def main(workdir, tree, inputs, options, loop_client):
     iso_initramfs = os.path.join(tmpisoimagespxe, initrd_img)
     extend_initramfs(initramfs=iso_initramfs, tree=tmpinitrd_base)
 
-    # Filter kernel arguments for substituting into ISO bootloader
-    kargs_array = [karg for karg in blsentry_kargs
-                   if karg.split('=')[0] not in LIVE_EXCLUDE_KARGS]
-    kargs_array.append(f"coreos.liveiso={volid}")
-    kargs = ' '.join(kargs_array)
-    print(f'Substituting ISO kernel arguments: {kargs}')
-
-    kargs_json = {'files': []}
-    cmdline = ''
-    karg_embed_area_length = 0
-    srcdir_prefix = os.path.join(deployed_tree, 'usr/share/coreos-assembler/live/')
-    # Grab all the contents from the live dir from the configs
-    for srcdir, _, filenames in os.walk(srcdir_prefix):
-        dir_suffix = srcdir.replace(srcdir_prefix, '', 1)
-        dstdir = os.path.join(tmpisoroot, dir_suffix)
-        if not os.path.exists(dstdir):
-            os.mkdir(dstdir)
-        for filename in filenames:
-            # Skip development readmes to avoid confusing users
-            if filename == 'README-devel.md':
-                continue
-            srcfile = os.path.join(srcdir, filename)
-            dstfile = os.path.join(dstdir, filename)
-            # Assumes all files are text
-            with open(srcfile, encoding='utf8') as fh:
-                buf = fh.read()
-            newbuf = buf.replace('@@KERNEL-ARGS@@', kargs)
-            # if we injected kargs, also check for an embed area
-            if buf != newbuf:
-                karg_area_start = re.search(r'@@KERNEL-ARGS@@', buf)
-                buf = newbuf
-                karg_area_end = re.search(r'(#+)# COREOS_KARG_EMBED_AREA\n', buf)
-                if karg_area_end is not None:
-                    file_kargs = buf[karg_area_start.start():karg_area_end.start()]
-                    if len(cmdline) == 0:
-                        cmdline = file_kargs
-                    elif cmdline != file_kargs:
-                        raise ValueError(f'Default cmdline is different: "{cmdline}" != "{file_kargs}"')
-
-                    length = karg_area_end.start() + len(karg_area_end[1]) - karg_area_start.start()
-                    kargs_json['files'].append({
-                        'path': os.path.join(dir_suffix, filename),
-                        'offset': karg_area_start.start(),
-                        'pad': '#',
-                        'end': '\n',
-                    })
-                    if karg_embed_area_length == 0:
-                        karg_embed_area_length = length
-                    elif length != karg_embed_area_length:
-                        raise ValueError(f"Karg embed areas of varying length {kargs_json['files']}")
-            with open(dstfile, 'w', encoding='utf8') as fh:
-                fh.write(buf)
-            shutil.copystat(srcfile, dstfile)
-            print(f'{srcfile} -> {dstfile}')
-
-    if karg_embed_area_length > 0:
-        assert (karg_embed_area_length > len(cmdline))
-        kargs_json.update(
-            size=karg_embed_area_length,
-            default=cmdline.strip(),
-        )
+    kargs_json = init_iso_kargs(deployed_tree, tmpisoroot, blsentry_kargs, volid)
 
     # These sections are based on lorax templates
     # see https://github.com/weldr/lorax/tree/master/share/templates.d/99-generic

@@ -420,6 +420,94 @@ boot
     return "images/efiboot.img"
 
 
+def mksquashfs_metal(workdir, img_metal, loop_client, basearch, squashfs_compression):
+    """
+    Mounts a copy of the metal image and modifies it accordingly to create a (squashfs) rootfs from its contents for the
+    live ISO.
+
+    Returns the bls entry kernel arguments for the ISO bootloader.
+    """
+    tmp_squashfs_dir = os.path.join(workdir, 'tmp-squashfs-dir')
+    os.mkdir(tmp_squashfs_dir)
+
+    # Since inputs are read-only and we want to modify we'll make a
+    # copy of the metal.raw image and then mount that.
+    tmp_img_metal = os.path.join(workdir, os.path.basename(img_metal))
+    cp_reflink(img_metal, tmp_img_metal)
+    with loop_client.device(tmp_img_metal, partscan=True) as loopdev:
+        # So we can temporarily see the loopXpX devices
+        subprocess.check_call(['mount', '-t', 'devtmpfs', 'devtmpfs', '/dev/'])
+        # Mount manually to avoid conflicts with osmet.
+        # If mounted via the manifest, the stage begins with mounts already in place,
+        # but osmet also performs a mount operation, leading to conflicts due to duplicate
+        # filesystem UUIDs. Perform the manual mount only after the osmet stage
+        subprocess.check_call(['mount', '-o', 'rw', loopdev + 'p4', tmp_squashfs_dir])
+        subprocess.check_call(['mount', '-o', 'rw', loopdev + 'p3',
+                               os.path.join(tmp_squashfs_dir, 'boot')])
+        if basearch in ['x86_64', 'aarch64']:
+            subprocess.check_call(['mount', '-o', 'rw', loopdev + 'p2',
+                                   os.path.join(tmp_squashfs_dir, 'boot/efi')])
+        squashfs_dir_umount_needed = True
+
+        # Implements necessary CoreOS adjustments
+        # including creating hardlinks in the /boot/ filesystem
+        # and modifying the read-only flag in OSTree configurations
+        # Where the contents of rootfs image are stored
+        # Make sure to create it, if it is not created yet.
+        tmpinitrd_rootfs = os.path.join(workdir, 'initrd-rootfs')
+        os.makedirs(tmpinitrd_rootfs, exist_ok=True)
+
+        # Remove the sysroot=readonly flag, see https://github.com/coreos/fedora-coreos-tracker/issues/589
+        subprocess.check_call(['sed', '-i', '/readonly=true/d', f'{tmp_squashfs_dir}/ostree/repo/config'])
+
+        # And ensure that the kernel binary and hmac file is in the place that dracut
+        # expects it to be; xref https://issues.redhat.com/browse/OCPBUGS-15843
+
+        kernel_binary = glob.glob(f"{tmp_squashfs_dir}/boot/ostree/*/vmlinuz*")[0]
+        kernel_hmac = glob.glob(f"{tmp_squashfs_dir}/boot/ostree/*/.*.hmac")[0]
+        kernel_binary_basename = os.path.basename(kernel_binary)
+        kernel_hmac_basename = os.path.basename(kernel_hmac)
+
+        # Create hard links in the /boot directory
+        os.link(kernel_hmac, f"{tmp_squashfs_dir}/boot/{kernel_hmac_basename}")
+        os.link(kernel_binary, f"{tmp_squashfs_dir}/boot/{kernel_binary_basename}")
+
+        print(f"Kernel binary linked: {tmp_squashfs_dir}/boot/{kernel_binary_basename}")
+        print(f"Kernel HMAC linked: {tmp_squashfs_dir}/boot/{kernel_hmac_basename}")
+        # Generate root squashfs
+        print(f'Compressing squashfs with {squashfs_compression}')
+
+        try:
+            # Name must be exactly "root.squashfs" because the 20live dracut module
+            # makes assumptions about the length of the name in sysroot.mount
+            tmp_squashfs = os.path.join(tmpinitrd_rootfs, 'root.squashfs')
+            # this matches the set of flags we implicitly passed when doing this
+            # through libguestfs' mksquashfs command
+            subprocess.check_call(['mksquashfs', tmp_squashfs_dir, tmp_squashfs,
+                                   '-root-becomes', tmp_squashfs_dir, '-wildcards', '-no-recovery',
+                                   '-comp', squashfs_compression])
+
+            # while it's mounted here, also get the kargs
+            blsentry = ensure_glob(os.path.join(tmp_squashfs_dir, 'boot/loader/entries/*.conf'))
+            if len(blsentry) != 1:
+                raise ValueError(f'Found != 1 BLS entries: {blsentry}')
+            blsentry = blsentry[0]
+            blsentry_kargs = []
+            with open(blsentry, encoding='utf8') as f:
+                for line in f:
+                    if line.startswith('options '):
+                        blsentry_kargs = line.split(' ', 1)[1].strip().split(' ')
+                        break
+            if len(blsentry_kargs) == 0:
+                raise ValueError("found no kargs in metal image")
+        finally:
+            if squashfs_dir_umount_needed:
+                subprocess.check_call(['umount', '-R', tmp_squashfs_dir])
+            subprocess.check_call(['umount', '/dev/'])
+
+    return blsentry_kargs
+
+
 # Here we will generate the 4 Live/PXE CoreOS artifacts.
 # There are four files created and exported from this stage.
 #
@@ -576,83 +664,7 @@ def main(workdir, tree, inputs, options, loop_client):
                        '--checksum', img_checksum, '--output', img_osmet_file]
                 chroot.run(cmd, check=True)
 
-    tmp_squashfs_dir = os.path.join(workdir, 'tmp-squashfs-dir')
-    os.mkdir(tmp_squashfs_dir)
-
-    # Since inputs are read-only and we want to modify we'll make a
-    # copy of the metal.raw image and then mount that.
-    tmp_img_metal = os.path.join(workdir, os.path.basename(img_metal))
-    cp_reflink(img_metal, tmp_img_metal)
-    with loop_client.device(tmp_img_metal, partscan=True) as loopdev:
-        # So we can temporarily see the loopXpX devices
-        subprocess.check_call(['mount', '-t', 'devtmpfs', 'devtmpfs', '/dev/'])
-        # Mount manually to avoid conflicts with osmet.
-        # If mounted via the manifest, the stage begins with mounts already in place,
-        # but osmet also performs a mount operation, leading to conflicts due to duplicate
-        # filesystem UUIDs. Perform the manual mount only after the osmet stage
-        subprocess.check_call(['mount', '-o', 'rw', loopdev + 'p4', tmp_squashfs_dir])
-        subprocess.check_call(['mount', '-o', 'rw', loopdev + 'p3',
-                               os.path.join(tmp_squashfs_dir, 'boot')])
-        if basearch in ['x86_64', 'aarch64']:
-            subprocess.check_call(['mount', '-o', 'rw', loopdev + 'p2',
-                                   os.path.join(tmp_squashfs_dir, 'boot/efi')])
-        squashfs_dir_umount_needed = True
-
-        # Immplements necessary CoreOS adjustments
-        # including creating hardlinks in the /boot/ filesystem
-        # and modifying the read-only flag in OSTree configurations
-        # Where the contents of rootfs image are stored
-        # Make sure to create it, if it is not created yet.
-        tmpinitrd_rootfs = os.path.join(workdir, 'initrd-rootfs')
-        os.makedirs(tmpinitrd_rootfs, exist_ok=True)
-
-        # Remove the sysroot=readonly flag, see https://github.com/coreos/fedora-coreos-tracker/issues/589
-        subprocess.check_call(['sed', '-i', '/readonly=true/d', f'{tmp_squashfs_dir}/ostree/repo/config'])
-
-        # And ensure that the kernel binary and hmac file is in the place that dracut
-        # expects it to be; xref https://issues.redhat.com/browse/OCPBUGS-15843
-
-        kernel_binary = glob.glob(f"{tmp_squashfs_dir}/boot/ostree/*/vmlinuz*")[0]
-        kernel_hmac = glob.glob(f"{tmp_squashfs_dir}/boot/ostree/*/.*.hmac")[0]
-        kernel_binary_basename = os.path.basename(kernel_binary)
-        kernel_hmac_basename = os.path.basename(kernel_hmac)
-
-        # Create hard links in the /boot directory
-        os.link(kernel_hmac, f"{tmp_squashfs_dir}/boot/{kernel_hmac_basename}")
-        os.link(kernel_binary, f"{tmp_squashfs_dir}/boot/{kernel_binary_basename}")
-
-        print(f"Kernel binary linked: {tmp_squashfs_dir}/boot/{kernel_binary_basename}")
-        print(f"Kernel HMAC linked: {tmp_squashfs_dir}/boot/{kernel_hmac_basename}")
-        # Generate root squashfs
-        print(f'Compressing squashfs with {squashfs_compression}')
-
-        try:
-            # Name must be exactly "root.squashfs" because the 20live dracut module
-            # makes assumptions about the length of the name in sysroot.mount
-            tmp_squashfs = os.path.join(tmpinitrd_rootfs, 'root.squashfs')
-            # this matches the set of flags we implicitly passed when doing this
-            # through libguestfs' mksquashfs command
-            subprocess.check_call(['mksquashfs', tmp_squashfs_dir, tmp_squashfs,
-                                   '-root-becomes', tmp_squashfs_dir, '-wildcards', '-no-recovery',
-                                   '-comp', squashfs_compression])
-
-            # while it's mounted here, also get the kargs
-            blsentry = ensure_glob(os.path.join(tmp_squashfs_dir, 'boot/loader/entries/*.conf'))
-            if len(blsentry) != 1:
-                raise ValueError(f'Found != 1 BLS entries: {blsentry}')
-            blsentry = blsentry[0]
-            blsentry_kargs = []
-            with open(blsentry, encoding='utf8') as f:
-                for line in f:
-                    if line.startswith('options '):
-                        blsentry_kargs = line.split(' ', 1)[1].strip().split(' ')
-                        break
-            if len(blsentry_kargs) == 0:
-                raise ValueError("found no kargs in metal image")
-        finally:
-            if squashfs_dir_umount_needed:
-                subprocess.check_call(['umount', '-R', tmp_squashfs_dir])
-            subprocess.check_call(['umount', '/dev/'])
+    blsentry_kargs = mksquashfs_metal(workdir, img_metal, loop_client, basearch, squashfs_compression)
 
     # Generate rootfs image
     iso_rootfs = os.path.join(tmpisoimagespxe, rootfs_img)

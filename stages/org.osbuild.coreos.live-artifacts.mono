@@ -635,31 +635,34 @@ def mk_osmet_files(deployed_tree, img_metal, img_metal4k, loop_client, tmpinitrd
                 chroot.run(cmd, check=True)
 
 
-# Here we will generate the 4 Live/PXE CoreOS artifacts.
-# There are four files created and exported from this stage.
-#
-# 1. live-iso
-# 2. live-kernel    (i.e. images/pxeboot/vmlinuz)
-# 3. live-initramfs (i.e. images/pxeboot/initrd.img)
-# 4. live-rootfs    (i.e. images/pxeboot/rootfs.img)
-#
-# The live-iso itself contains the other 3 artifacts inside of
-# it. A rough approximation of the structure looks like:
-#
-#   live-iso.iso
-#     -> images/pxeboot/vmlinuz
-#     -> images/pxeboot/initrd.img
-#     -> images/pxeboot/rootfs.img
-#       -> metal.osmet
-#       -> metal4k.osmet
-#       -> root.squashfs
-#         -> full filesystem of metal image
-#
-# Where the ISO contains the kernel and initrd and the rootfs. The
-# rootfs contains the osmet file and the root.squashfs, which itself
-# contains all the files from a full CoreOS system.
-# pylint: disable=too-many-statements,too-many-branches
 def main(workdir, tree, inputs, options, loop_client):
+    # pylint: disable=too-many-statements,too-many-branches
+    """
+    Here we will generate the 4 Live/PXE CoreOS artifacts.
+    There are four files created and exported from this stage.
+
+    1. live-iso
+    2. live-kernel    (i.e. images/pxeboot/vmlinuz)
+    3. live-initramfs (i.e. images/pxeboot/initrd.img)
+    4. live-rootfs    (i.e. images/pxeboot/rootfs.img)
+
+    The live-iso itself contains the other 3 artifacts inside of
+    it. A rough approximation of the structure looks like:
+
+      live-iso.iso
+        -> images/pxeboot/vmlinuz
+        -> images/pxeboot/initrd.img
+        -> images/pxeboot/rootfs.img
+          -> metal.osmet
+          -> metal4k.osmet
+          -> root.squashfs
+            -> full filesystem of metal image
+
+    Where the ISO contains the kernel and initrd and the rootfs. The
+    rootfs contains the osmet file and the root.squashfs, which itself
+    contains all the files from a full CoreOS system.
+    """
+
     squashfs_compression = 'zstd'
     basearch = os.uname().machine
     filenames = options['filenames']

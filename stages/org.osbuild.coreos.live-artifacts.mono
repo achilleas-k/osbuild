@@ -616,6 +616,25 @@ def trim_for_test_fixtures(tmpisoimages, tmpisoisolinux, tmpisoimagespxe):
             os.unlink(f)
 
 
+def mk_osmet_files(deployed_tree, img_metal, img_metal4k, loop_client, tmpinitrd_rootfs, os_release):
+    """
+    Add osmet files. Use a chroot here to use the same coreos-installer as is
+    in the artifacts we are building. Use the deployed_tree as the chroot since
+    that's the easiest thing to do.
+    """
+    for img, sector_size in [(img_metal, 512), (img_metal4k, 4096)]:
+        with loop_client.device(img, partscan=True, read_only=True, sector_size=sector_size) as loopdev:
+            img_name = os.path.basename(img)
+            print(f'Generating osmet file for {img_name} image')
+            img_checksum = checksum.hexdigest_file(loopdev, "sha256")
+            img_osmet_file = os.path.join(tmpinitrd_rootfs, f'{img_name}.osmet')
+            with Chroot(deployed_tree, bind_mounts=["/run", "/tmp"]) as chroot:
+                cmd = ['coreos-installer', 'pack', 'osmet', loopdev,
+                       '--description', os_release['PRETTY_NAME'],
+                       '--checksum', img_checksum, '--output', img_osmet_file]
+                chroot.run(cmd, check=True)
+
+
 # Here we will generate the 4 Live/PXE CoreOS artifacts.
 # There are four files created and exported from this stage.
 #
@@ -748,20 +767,7 @@ def main(workdir, tree, inputs, options, loop_client):
     with open(os.path.join(tmpisocoreos, 'features.json'), 'w', encoding='utf8') as fh:
         fh.write(features)
 
-    # Add osmet files. Use a chroot here to use the same coreos-installer as is
-    # in the artifacts we are building. Use the deployed_tree as the chroot since
-    # that's the easiest thing to do.
-    for img, sector_size in [(img_metal, 512), (img_metal4k, 4096)]:
-        with loop_client.device(img, partscan=True, read_only=True, sector_size=sector_size) as loopdev:
-            img_name = os.path.basename(img)
-            print(f'Generating osmet file for {img_name} image')
-            img_checksum = checksum.hexdigest_file(loopdev, "sha256")
-            img_osmet_file = os.path.join(tmpinitrd_rootfs, f'{img_name}.osmet')
-            with Chroot(deployed_tree, bind_mounts=["/run", "/tmp"]) as chroot:
-                cmd = ['coreos-installer', 'pack', 'osmet', loopdev,
-                       '--description', os_release['PRETTY_NAME'],
-                       '--checksum', img_checksum, '--output', img_osmet_file]
-                chroot.run(cmd, check=True)
+    mk_osmet_files(deployed_tree, img_metal, img_metal4k, loop_client, tmpinitrd_rootfs, os_release)
 
     blsentry_kargs = mksquashfs_metal(workdir, img_metal, loop_client, basearch, squashfs_compression)
 

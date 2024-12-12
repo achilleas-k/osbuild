@@ -182,7 +182,7 @@ def parse_metal_inputs(inputs):
     return metal_file, metal4k_file
 
 
-def genisoargs_x86_64(tmpisoisolinux):
+def genisoargs_x86_64(workdir):
     # Install binaries from syslinux package
     isolinuxfiles = [('/usr/share/syslinux/isolinux.bin', 0o755),
                      ('/usr/share/syslinux/ldlinux.c32', 0o755),
@@ -190,7 +190,7 @@ def genisoargs_x86_64(tmpisoisolinux):
                      ('/usr/share/syslinux/libutil.c32', 0o755),
                      ('/usr/share/syslinux/vesamenu.c32', 0o755)]
     for src, mode in isolinuxfiles:
-        dst = os.path.join(tmpisoisolinux, os.path.basename(src))
+        dst = os.path.join(mkpath_tmpisoisolinux(workdir), os.path.basename(src))
         shutil.copyfile(src, dst)
         os.chmod(dst, mode)
 
@@ -202,7 +202,8 @@ def genisoargs_x86_64(tmpisoisolinux):
                 '-boot-info-table']
 
 
-def genisoargs_ppc64le(tmpisoroot, kargs_json, volid):
+def genisoargs_ppc64le(workdir, kargs_json, volid):
+    tmpisoroot = mkpath_tmpisoroot(workdir)
     os.makedirs(os.path.join(tmpisoroot, 'boot/grub'))
     # can be EFI/fedora or EFI/redhat
     grubpath = ensure_glob(os.path.join(tmpisoroot, 'EFI/*/grub.cfg'))
@@ -221,8 +222,9 @@ def genisoargs_ppc64le(tmpisoroot, kargs_json, volid):
     return ['grub2-mkrescue', '-volid', volid]
 
 
-def genisoargs_s390x(tmpisoimages, tmpisoroot, tmpisoimagespxe, kernel_img, test_fixture, iso_initramfs, volid,
-                     name_version):
+def genisoargs_s390x(workdir, kernel_img, test_fixture, volid, name_version):
+    tmpisoimages = mkpath_tmpisoimages(workdir)
+    tmpisoroot = mkpath_tmpisoroot(workdir)
     # Reserve 32MB for the kernel, starting memory address of the initramfs
     # See https://github.com/weldr/lorax/blob/master/share/templates.d/99-generic/s390.tmpl
     INITRD_ADDRESS = '0x02000000'
@@ -238,10 +240,11 @@ def genisoargs_s390x(tmpisoimages, tmpisoroot, tmpisoimagespxe, kernel_img, test
 
     # s390x's z/VM CMS files are limited to 8 char for filenames and extensions
     # Also it is nice to keep naming convetion with Fedora/RHEL for existing users and code
-    kernel_dest = os.path.join(tmpisoimagespxe, 'kernel.img')
-    shutil.move(os.path.join(tmpisoimagespxe, kernel_img), kernel_dest)
+    kernel_dest = os.path.join(mkpath_tmpisoimagespxe(workdir), 'kernel.img')
+    shutil.move(os.path.join(mkpath_tmpisoimagespxe(workdir), kernel_img), kernel_dest)
     kernel_img = 'kernel.img'
 
+    iso_initramfs = mkpath_iso_initramfs(workdir)
     if test_fixture:
         # truncate it to 128k so it includes the offsets to the initrd and kargs
         # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L24
@@ -285,13 +288,15 @@ def genisoargs_s390x(tmpisoimages, tmpisoroot, tmpisoimagespxe, kernel_img, test
             os.path.join(os.path.relpath(tmpisoimages, tmpisoroot), 'cdboot.img')]
 
 
-def update_image_offsets(tmpisoimages, iso_initramfs, kargs_json):
+def update_image_offsets(workdir, kargs_json):
     # Get the kargs and initramfs offsets in the cdboot.img. For more info, see:
     # https://github.com/ibm-s390-linux/s390-tools/blob/032304d5034e/netboot/mk-s390image#L21-L23
     CDBOOT_IMG_OFFS_INITRD_START_BYTES = 66568
     CDBOOT_IMG_OFFS_KARGS_START_BYTES = 66688
     CDBOOT_IMG_OFFS_KARGS_MAX_SIZE = 896
-    with open(os.path.join(tmpisoimages, 'cdboot.img'), 'rb') as f:
+
+    iso_initramfs = mkpath_iso_initramfs(workdir)
+    with open(os.path.join(mkpath_tmpisoimages(workdir), 'cdboot.img'), 'rb') as f:
         f.seek(CDBOOT_IMG_OFFS_INITRD_START_BYTES)
         offset = struct.unpack(">Q", f.read(8))[0]
 
@@ -318,7 +323,7 @@ def update_image_offsets(tmpisoimages, iso_initramfs, kargs_json):
     }
 
 
-def mkefiboot(workdir, tmpisoroot, tmpisoimages, deployed_tree, kargs_json, volid, loop_client):
+def mkefiboot(workdir, deployed_tree, kargs_json, volid, loop_client):
     """
     Creates an efi boot image, required for EFI booting the ISO.
 
@@ -352,7 +357,7 @@ def mkefiboot(workdir, tmpisoroot, tmpisoimages, deployed_tree, kargs_json, voli
 
         # Always replace live/EFI/{vendor} to actual live/EFI/{vendor_id}
         # https://github.com/openshift/os/issues/954
-        dfd = os.open(tmpisoroot, os.O_RDONLY)
+        dfd = os.open(mkpath_tmpisoroot(workdir), os.O_RDONLY)
         grubfilepath = ensure_glob('EFI/*/grub.cfg', dir_fd=dfd)
         if len(grubfilepath) != 1:
             raise ValueError(f'Found != 1 grub.cfg files: {grubfilepath}')
@@ -418,7 +423,7 @@ boot
             tar.add(tmpimageefidir, arcname="/EFI", filter=strip)
 
         # Create the efiboot.img file in the images/ dir
-        efibootfile = os.path.join(tmpisoimages, 'efiboot.img')
+        efibootfile = os.path.join(mkpath_tmpisoimages(workdir), 'efiboot.img')
         make_efi_bootfile(loop_client, input_tarball=efitarfile.name, output_efiboot_img=efibootfile)
 
     return "images/efiboot.img"
@@ -512,7 +517,7 @@ def mksquashfs_metal(workdir, img_metal, loop_client, basearch, squashfs_compres
     return blsentry_kargs
 
 
-def init_iso_kargs(deployed_tree, tmpisoroot, blsentry_kargs, volid):
+def init_iso_kargs(deployed_tree, workdir, blsentry_kargs, volid):
     # Filter kernel arguments for substituting into ISO bootloader
     kargs_array = [karg for karg in blsentry_kargs
                    if karg.split('=')[0] not in LIVE_EXCLUDE_KARGS]
@@ -527,7 +532,7 @@ def init_iso_kargs(deployed_tree, tmpisoroot, blsentry_kargs, volid):
     # Grab all the contents from the live dir from the configs
     for srcdir, _, filenames in os.walk(srcdir_prefix):
         dir_suffix = srcdir.replace(srcdir_prefix, '', 1)
-        dstdir = os.path.join(tmpisoroot, dir_suffix)
+        dstdir = os.path.join(mkpath_tmpisoroot(workdir), dir_suffix)
         if not os.path.exists(dstdir):
             os.mkdir(dstdir)
         for filename in filenames:
@@ -589,10 +594,13 @@ def check_for_test_fixture(deployed_tree):
     return os.path.exists(os.path.join(deployed_tree, 'usr/share/coreos-assembler/coreos-installer-test-fixture'))
 
 
-def trim_for_test_fixtures(tmpisoimages, tmpisoisolinux, tmpisoimagespxe):
+def trim_for_test_fixtures(workdir):
     """
     Replaces the large images (efiboot.img, rootfs.img, etc) with simple text files to aid in test fixture creation.
     """
+    tmpisoimages = mkpath_tmpisoimages(workdir)
+    tmpisoisolinux = mkpath_tmpisoisolinux(workdir)
+    tmpisoimagespxe = mkpath_tmpisoimagespxe(workdir)
     with open(os.path.join(tmpisoimages, 'efiboot.img'), 'w', encoding='utf8') as fh:
         fh.write('efiboot.img\n')
     with open(os.path.join(tmpisoimagespxe, 'rootfs.img'), 'w', encoding='utf8') as fh:
@@ -616,7 +624,7 @@ def trim_for_test_fixtures(tmpisoimages, tmpisoisolinux, tmpisoimagespxe):
             os.unlink(f)
 
 
-def mk_osmet_files(deployed_tree, img_metal, img_metal4k, loop_client, tmpinitrd_rootfs, os_release):
+def mk_osmet_files(deployed_tree, img_metal, img_metal4k, loop_client, workdir, os_release):
     """
     Add osmet files. Use a chroot here to use the same coreos-installer as is
     in the artifacts we are building. Use the deployed_tree as the chroot since
@@ -627,12 +635,64 @@ def mk_osmet_files(deployed_tree, img_metal, img_metal4k, loop_client, tmpinitrd
             img_name = os.path.basename(img)
             print(f'Generating osmet file for {img_name} image')
             img_checksum = checksum.hexdigest_file(loopdev, "sha256")
-            img_osmet_file = os.path.join(tmpinitrd_rootfs, f'{img_name}.osmet')
+            img_osmet_file = os.path.join(mkpath_tmpinitrd_rootfs(workdir), f'{img_name}.osmet')
             with Chroot(deployed_tree, bind_mounts=["/run", "/tmp"]) as chroot:
                 cmd = ['coreos-installer', 'pack', 'osmet', loopdev,
                        '--description', os_release['PRETTY_NAME'],
                        '--checksum', img_checksum, '--output', img_osmet_file]
                 chroot.run(cmd, check=True)
+
+
+def mkpath_tmpisofile(workdir):
+    return os.path.join(workdir, 'live.iso')
+
+
+def mkpath_tmpisoroot(workdir):
+    return os.path.join(workdir, 'iso')
+
+
+def mkpath_tmpisocoreos(workdir):
+    return os.path.join(mkpath_tmpisoroot(workdir), 'coreos')
+
+
+def mkpath_tmpisoimages(workdir):
+    return os.path.join(mkpath_tmpisoroot(workdir), 'images')
+
+
+def mkpath_tmpisoimagespxe(workdir):
+    return os.path.join(mkpath_tmpisoimages(workdir), 'pxeboot')
+
+
+def mkpath_tmpisoisolinux(workdir):
+    return os.path.join(mkpath_tmpisoroot(workdir), 'isolinux')
+
+
+def mkpath_tmpinitrd_base(workdir):
+    return os.path.join(workdir, 'initrd')
+
+
+def mkpath_tmpinitrd_rootfs(workdir):
+    return os.path.join(workdir, 'initrd-rootfs')
+
+
+def mkpath_iso_initramfs(workdir):
+    return os.path.join(mkpath_tmpisoimagespxe(workdir), "initrd.img")
+
+
+def mk_workdirs(workdir):
+    tmpisoroot = mkpath_tmpisoroot(workdir)
+    tmpisocoreos = mkpath_tmpisocoreos(workdir)
+    tmpisoimages = mkpath_tmpisoimages(workdir)
+    tmpisoimagespxe = mkpath_tmpisoimagespxe(workdir)
+    tmpisoisolinux = mkpath_tmpisoisolinux(workdir)
+    # contents of initramfs on both PXE and ISO
+    tmpinitrd_base = mkpath_tmpinitrd_base(workdir)
+    # contents of rootfs image
+    tmpinitrd_rootfs = mkpath_tmpinitrd_rootfs(workdir)
+
+    for d in (tmpisoroot, tmpisocoreos, tmpisoimages, tmpisoimagespxe,
+              tmpisoisolinux, tmpinitrd_base, tmpinitrd_rootfs):
+        os.mkdir(d)
 
 
 def main(workdir, tree, inputs, options, loop_client):
@@ -689,24 +749,10 @@ def main(workdir, tree, inputs, options, loop_client):
     # version which may impede uniqueness.
     volid = name_version[0:32]
 
-    tmpisofile = os.path.join(workdir, 'live.iso')
-    tmpisoroot = os.path.join(workdir, 'iso')
-    tmpisocoreos = os.path.join(tmpisoroot, 'coreos')
-    tmpisoimages = os.path.join(tmpisoroot, 'images')
-    tmpisoimagespxe = os.path.join(tmpisoimages, 'pxeboot')
-    tmpisoisolinux = os.path.join(tmpisoroot, 'isolinux')
-    # contents of initramfs on both PXE and ISO
-    tmpinitrd_base = os.path.join(workdir, 'initrd')
-    # contents of rootfs image
-    tmpinitrd_rootfs = os.path.join(workdir, 'initrd-rootfs')
-
-    for d in (tmpisoroot, tmpisocoreos, tmpisoimages, tmpisoimagespxe,
-              tmpisoisolinux, tmpinitrd_base, tmpinitrd_rootfs):
-        os.mkdir(d)
+    mk_workdirs(workdir)
 
     # convention for kernel and initramfs names and a few others
     kernel_img = 'vmlinuz'
-    initrd_img = 'initrd.img'
     rootfs_img = 'rootfs.img'
     kargs_file = 'kargs.json'
     igninfo_file = 'igninfo.json'
@@ -721,18 +767,19 @@ def main(workdir, tree, inputs, options, loop_client):
 
     # copy those files out of the ostree into the iso root dir
     initramfs_img = 'initramfs.img'
+    tmpisoimagespxe = mkpath_tmpisoimagespxe(workdir)
     for file in [kernel_img, initramfs_img]:
         src = os.path.join(modules_dir, moduledir, file)
         dst = os.path.join(tmpisoimagespxe, file)
         if file == initramfs_img:
-            dst = os.path.join(tmpisoimagespxe, initrd_img)
+            dst = mkpath_iso_initramfs(workdir)
         shutil.copyfile(src, dst)
         # initramfs isn't world readable by default so let's open up perms
         os.chmod(dst, 0o644)
 
     # Generate initramfs stamp file indicating that this is a live
     # initramfs.  Store the build ID in it.
-    stamppath = os.path.join(tmpinitrd_base, 'etc/coreos-live-initramfs')
+    stamppath = os.path.join(mkpath_tmpinitrd_base(workdir), 'etc/coreos-live-initramfs')
     os.makedirs(os.path.dirname(stamppath), exist_ok=True)
     with open(stamppath, 'w', encoding='utf8') as fh:
         fh.write(version + '\n')
@@ -740,7 +787,7 @@ def main(workdir, tree, inputs, options, loop_client):
     # Generate rootfs stamp file with the build ID, indicating that the
     # rootfs has been appended and confirming that initramfs and rootfs are
     # from the same build.
-    stamppath = os.path.join(tmpinitrd_rootfs, 'etc/coreos-live-rootfs')
+    stamppath = os.path.join(mkpath_tmpinitrd_rootfs(workdir), 'etc/coreos-live-rootfs')
     os.makedirs(os.path.dirname(stamppath), exist_ok=True)
     with open(stamppath, 'w', encoding='utf8') as fh:
         fh.write(version + '\n')
@@ -755,7 +802,7 @@ def main(workdir, tree, inputs, options, loop_client):
     # the simple case (where layered initrds are supported). The s390x case is
     # handled lower down
     if basearch != 's390x':
-        with open(os.path.join(tmpisoimages, 'ignition.img'), 'wb') as fdst:
+        with open(os.path.join(mkpath_tmpisoimages(workdir), 'ignition.img'), 'wb') as fdst:
             fdst.write(bytes(IGNITION_IMG_SIZE))
         igninfo_json = {'file': 'images/ignition.img'}
 
@@ -763,14 +810,14 @@ def main(workdir, tree, inputs, options, loop_client):
     # coreos-installer {iso|pxe} customize.  Put it in the initramfs for
     # pxe customize and the ISO for iso customize.
     features = json.dumps(get_os_features(tree=deployed_tree), indent=2, sort_keys=True) + '\n'
-    featurespath = os.path.join(tmpinitrd_base, 'etc/coreos/features.json')
+    featurespath = os.path.join(mkpath_tmpinitrd_base(workdir), 'etc/coreos/features.json')
     os.makedirs(os.path.dirname(featurespath), exist_ok=True)
     with open(featurespath, 'w', encoding='utf8') as fh:
         fh.write(features)
-    with open(os.path.join(tmpisocoreos, 'features.json'), 'w', encoding='utf8') as fh:
+    with open(os.path.join(mkpath_tmpisocoreos(workdir), 'features.json'), 'w', encoding='utf8') as fh:
         fh.write(features)
 
-    mk_osmet_files(deployed_tree, img_metal, img_metal4k, loop_client, tmpinitrd_rootfs, os_release)
+    mk_osmet_files(deployed_tree, img_metal, img_metal4k, loop_client, workdir, os_release)
 
     blsentry_kargs = mksquashfs_metal(workdir, img_metal, loop_client, basearch, squashfs_compression)
 
@@ -778,7 +825,7 @@ def main(workdir, tree, inputs, options, loop_client):
     iso_rootfs = os.path.join(tmpisoimagespxe, rootfs_img)
     # The rootfs must be uncompressed because the ISO mounts root.squashfs
     # directly from the middle of the file
-    extend_initramfs(initramfs=iso_rootfs, tree=tmpinitrd_rootfs, compress=False)
+    extend_initramfs(initramfs=iso_rootfs, tree=mkpath_tmpinitrd_rootfs(workdir), compress=False)
     # Check that the root.squashfs magic number is in the offset hardcoded
     # in sysroot.mount in 20live/live-generator
     with open(iso_rootfs, 'rb') as fh:
@@ -786,13 +833,13 @@ def main(workdir, tree, inputs, options, loop_client):
         if fh.read(4) != b'hsqs':
             raise ValueError("root.squashfs not at expected offset in rootfs image")
     # Save stream hash of rootfs for verifying out-of-band fetches
+    tmpinitrd_base = mkpath_tmpinitrd_base(workdir)
     os.makedirs(os.path.join(tmpinitrd_base, 'etc'), exist_ok=True)
     make_stream_hash(iso_rootfs, os.path.join(tmpinitrd_base, 'etc/coreos-live-want-rootfs'))
     # Add common content
-    iso_initramfs = os.path.join(tmpisoimagespxe, initrd_img)
-    extend_initramfs(initramfs=iso_initramfs, tree=tmpinitrd_base)
+    extend_initramfs(initramfs=mkpath_iso_initramfs(workdir), tree=tmpinitrd_base)
 
-    kargs_json = init_iso_kargs(deployed_tree, tmpisoroot, blsentry_kargs, volid)
+    kargs_json = init_iso_kargs(deployed_tree, workdir, blsentry_kargs, volid)
 
     # These sections are based on lorax templates
     # see https://github.com/weldr/lorax/tree/master/share/templates.d/99-generic
@@ -808,62 +855,61 @@ def main(workdir, tree, inputs, options, loop_client):
 
     # For x86_64 legacy boot (BIOS) booting
     if basearch == "x86_64":
-        genisoargs += genisoargs_x86_64(tmpisoisolinux)
+        genisoargs += genisoargs_x86_64(workdir)
     elif basearch == "ppc64le":
-        genisoargs = genisoargs_ppc64le(tmpisoroot, kargs_json, volid)
+        genisoargs = genisoargs_ppc64le(workdir, kargs_json, volid)
     elif basearch == "s390x":
-        genisoargs = genisoargs_s390x(tmpisoimages, tmpisoroot, tmpisoimagespxe, kernel_img, test_fixture,
-                                      iso_initramfs, volid, name_version)
-        igninfo_json = update_image_offsets(tmpisoimages, iso_initramfs, kargs_json)
+        genisoargs = genisoargs_s390x(workdir, kernel_img, test_fixture, volid, name_version)
+        igninfo_json = update_image_offsets(workdir, kargs_json)
 
     # Drop zipl.prm as it was either unused (!s390x) or is now no longer
     # needed (s390x)
-    os.unlink(os.path.join(tmpisoroot, 'zipl.prm'))
+    os.unlink(os.path.join(mkpath_tmpisoroot(workdir), 'zipl.prm'))
 
     # For x86_64 and aarch64 UEFI booting
     if basearch in ("x86_64", "aarch64"):
-        efiboot_path = mkefiboot(workdir, tmpisoroot, tmpisoimages, deployed_tree, kargs_json, volid, loop_client)
+        efiboot_path = mkefiboot(workdir, deployed_tree, kargs_json, volid, loop_client)
         genisoargs += ['-eltorito-alt-boot', '-efi-boot', efiboot_path, '-no-emul-boot']
 
     # We've done everything that might affect kargs, so filter out any files
     # that no longer exist and write out the kargs JSON if it lists any files
     kargs_json['files'] = [f for f in kargs_json['files']
-                           if os.path.exists(os.path.join(tmpisoroot, f['path']))]
+                           if os.path.exists(os.path.join(mkpath_tmpisoroot(workdir), f['path']))]
     kargs_json['files'].sort(key=lambda f: f['path'])
     if kargs_json['files']:
         # Store the location of "karg embed areas" for use by
         # `coreos-installer iso kargs modify`
-        with open(os.path.join(tmpisocoreos, kargs_file), 'w', encoding='utf8') as fh:
+        with open(os.path.join(mkpath_tmpisocoreos(workdir), kargs_file), 'w', encoding='utf8') as fh:
             json.dump(kargs_json, fh, indent=2, sort_keys=True)
             fh.write('\n')
 
     # Write out the igninfo.json file. This is used by coreos-installer to know
     # how to embed the Ignition config.
-    with open(os.path.join(tmpisocoreos, igninfo_file), 'w', encoding='utf8') as fh:
+    with open(os.path.join(mkpath_tmpisocoreos(workdir), igninfo_file), 'w', encoding='utf8') as fh:
         json.dump(igninfo_json, fh, indent=2, sort_keys=True)  # pylint: disable=E0601
         fh.write('\n')
 
     # Define inputs and outputs
-    genisoargs_final = genisoargs + ['-o', tmpisofile, tmpisoroot]
+    genisoargs_final = genisoargs + ['-o', mkpath_tmpisofile(workdir), mkpath_tmpisoroot(workdir)]
 
-    miniso_data = os.path.join(tmpisocoreos, "miniso.dat")
+    miniso_data = os.path.join(mkpath_tmpisocoreos(workdir), "miniso.dat")
     with open(miniso_data, 'wb') as f:
         f.truncate(MINISO_DATA_FILE_SIZE)
 
     if test_fixture:
-        trim_for_test_fixtures(tmpisoimages, tmpisoisolinux, tmpisoimagespxe)
+        trim_for_test_fixtures(workdir)
 
     subprocess.check_call(genisoargs_final)
 
     # Add MBR, and GPT with ESP, for x86_64 BIOS/UEFI boot when ISO is
     # copied to a USB stick
     if basearch == "x86_64":
-        subprocess.check_call(['/usr/bin/isohybrid', '--uefi', tmpisofile])
+        subprocess.check_call(['/usr/bin/isohybrid', '--uefi', mkpath_tmpisofile(workdir)])
 
     # Copy to final output locations the things that won't change from
     # this point forward. We do it here because we unlink the the rootfs below.
     cp_reflink(os.path.join(tmpisoimagespxe, kernel_img), output_kernel)
-    cp_reflink(os.path.join(tmpisoimagespxe, initrd_img), output_initramfs)
+    cp_reflink(mkpath_iso_initramfs(workdir), output_initramfs)
     cp_reflink(iso_rootfs, output_rootfs)
 
     # Here we generate a minimal ISO purely for the purpose of
@@ -882,7 +928,8 @@ def main(workdir, tree, inputs, options, loop_client):
     # coreos-installer takes care of removing it.
     os.unlink(iso_rootfs)
     os.unlink(miniso_data)
-    subprocess.check_call(genisoargs + ['-o', f'{tmpisofile}.minimal', tmpisoroot])
+    tmpisofile = mkpath_tmpisofile(workdir)
+    subprocess.check_call(genisoargs + ['-o', f'{tmpisofile}.minimal', mkpath_tmpisoroot(workdir)])
     if basearch == "x86_64":
         subprocess.check_call(['/usr/bin/isohybrid', '--uefi', f'{tmpisofile}.minimal'])
     with Chroot(deployed_tree, bind_mounts=["/run"]) as chroot:

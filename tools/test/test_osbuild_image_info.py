@@ -1,3 +1,6 @@
+import os
+import subprocess as sp
+
 import pytest
 
 from osbuild.testutil import make_fake_tree
@@ -135,3 +138,77 @@ grub_class fedora""",
 def test_read_boot_entries(tmp_path, fake_tree, entries):
     make_fake_tree(tmp_path, fake_tree)
     assert osbuild_image_info.read_boot_entries(tmp_path / "boot") == entries
+
+
+@pytest.mark.parametrize("env,parsed", (
+    ("", {}),
+    ("# empty", {}),
+    ("""
+# COMMENT
+DESKTOP_SESSION=plasma
+EDITOR=/usr/bin/vim
+XDG_RUNTIME_DIR=/run/user/1000
+     """,
+     {
+         "DESKTOP_SESSION": "plasma",
+         "EDITOR": "/usr/bin/vim",
+         "XDG_RUNTIME_DIR": "/run/user/1000",
+     }),
+    ("""
+DEVNAME=/dev/sda
+PTUUID=56ffaa19-3d6e-ae4d-8bd5-2dc82fc6f680
+PTTYPE=gpt
+     """,
+     {
+        "DEVNAME": "/dev/sda",
+        "PTUUID": "56ffaa19-3d6e-ae4d-8bd5-2dc82fc6f680",
+        "PTTYPE": "gpt",
+     }),
+))
+def test_parse_environmenr_vars(env, parsed):
+    assert osbuild_image_info.parse_environment_vars(env) == parsed
+
+
+@pytest.mark.parametrize("size,commands,expected", (
+    (10 * 1024 * 1024, """
+label: gpt
+label-id: C394C8F9-5AD1-4F93-9DB7-38D5B7E07672
+start="2048", size="2048", type="21686148-6449-6E6F-744E-656564454649", uuid="320D5AD6-C760-46BD-9B92-60A0CE8F07DC"
+start="4096", size="8053", type="E6D6D379-F507-44C2-A23C-238F2A3DF928", uuid="626E6AD4-2AF9-4179-9B14-6222A57DD075"
+start="12149", size="2048", type="0FC63DAF-8483-4772-8E79-3D69D8477DE4", uuid="F32F152B-CA55-439D-8330-F78977451C45"
+    """,
+     {
+         "partition-table": "gpt",
+         "partition-table-id": "C394C8F9-5AD1-4F93-9DB7-38D5B7E07672",
+         "partitions": [
+             {
+                 'bootable': False,
+                 'partuuid': '320D5AD6-C760-46BD-9B92-60A0CE8F07DC',
+                 'size': 1048576,
+                 'start': 1048576,
+                 'type': '21686148-6449-6E6F-744E-656564454649',
+             },
+             {
+                 'bootable': False,
+                 'partuuid': '626E6AD4-2AF9-4179-9B14-6222A57DD075',
+                 'size': 4123136,
+                 'start': 2097152,
+                 'type': 'E6D6D379-F507-44C2-A23C-238F2A3DF928',
+             },
+             {
+                 'bootable': False,
+                 'partuuid': 'F32F152B-CA55-439D-8330-F78977451C45',
+                 'size': 1048576,
+                 'start': 6220288,
+                 'type': '0FC63DAF-8483-4772-8E79-3D69D8477DE4',
+             },
+         ],
+     }),
+))
+def test_read_partition_table(tmp_path, size, commands, expected):
+    disk_path = tmp_path / "disk.raw"
+    disk_path.write_bytes(b"")
+    os.truncate(disk_path, size)
+
+    sp.run(["sfdisk", "--no-tell-kernel", disk_path], input=commands, encoding="utf-8", check=True)
+    assert osbuild_image_info.read_partition_table(disk_path) == expected

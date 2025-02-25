@@ -1,0 +1,18 @@
+#!/usr/bin/python3
+import sys
+
+import osbuild.api
+from osbuild.util.chroot import Chroot
+
+
+def main(paths, devices, options):
+    mntroot = paths["mounts"]
+    with Chroot(mntroot) as chroot:
+        # chroot.run(["kernel-bootcfg", "--update-csv"])
+        chroot.run(["fdisk", "-l", "/dev/loop0"])
+
+
+if __name__ == '__main__':
+    args = osbuild.api.arguments()
+    r = main(args["paths"], args["devices"], args["options"])
+    sys.exit(r)

@@ -1,0 +1,17 @@
+{
+  "summary": "Manage UEFI boot entries with kernel-bootcfg",
+  "description": [],
+  "schema_2": {
+    "options": {
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "devices": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "mounts": {
+      "type": "array"
+    }
+  }
+}

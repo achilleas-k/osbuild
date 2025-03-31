@@ -126,6 +126,23 @@ pipelines:
   - name: uki
     build: name:build
     stages:
+      - type: org.osbuild.rpm
+        inputs:
+          packages:
+            type: org.osbuild.files
+            origin: org.osbuild.source
+            mpp-depsolve:
+              architecture: $arch
+              module-platform-id: $module_platform_id
+              repos:
+                mpp-eval: repos
+              packages:
+                - systemd-boot-unsigned
+        options:
+          gpgkeys:
+            mpp-eval: gpgkeys
+          exclude:
+            docs: true
       - type: org.osbuild.uki
         options:
           filename: linux.efi

@@ -986,6 +986,26 @@
       "build": "name:build",
       "stages": [
         {
+          "type": "org.osbuild.rpm",
+          "inputs": {
+            "packages": {
+              "type": "org.osbuild.files",
+              "origin": "org.osbuild.source",
+              "references": {
+                "sha256:db2c222e6004fe403af2bc0a7dc1b6e0aa9627ef889850a51f3e0db499de023a": {}
+              }
+            }
+          },
+          "options": {
+            "gpgkeys": [
+              "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nmQINBGTSYSwBEACTHP7OFONk+1B1awJeYToUFMVbYZIjNvj9M7zwf5vzH52FlpXX\ndsbs1AWh6NUe0zV1J5JjCGiI24Vjacysg7L2zsbgT48vVv3mXrXorjYOzT/cxsAh\n7PNhEx+OevKzAx3oy0Ok27c11Dz0W4ynwVy80gB6XHI2rd04v74TiC0xQYlxj1Sh\nj6irdLmHMD/NtTCWmCM7MRf91UcC4rk6JOap715UKey2fk1h/wylv0guMP3o+CpG\njxDHENkfl/GsWCSYBaHec7o5/qg5RoAkN5NImVI00CqiEO1WHPBaCJalgwbuQCiW\n006jwVDHJHRoufS85PEKaY9yqd5Fr76kdqCLsf3Ys9yxGVfOTvCaKOa+ElWBo+i6\nyOtEO6Qp1Qd5spomBJ+FVPjU89lR9aDnvxIVX7X6zu638qV0K3Lb2HKmqiVG6ccJ\nIdxNVXJAekvu7ypwvRzEc0mGgfkZ47flaj7X8SxiebbXhYWdqRBF0rMYc7ppkbCp\n5NsD+KJilkfeOGb7VK6Rx5vXmySiNCb9GqN51KRl4Z1qllrc/Q1k5CCMt3AUq0hv\n1fwK3eFGtd4/YgF9LoZ0tW8WFZ6h/zWnRvJ/SDBPhtovoSpxptCd18MWiakwvwW0\nsxueKFlctdDjW1a/gri3V4RdTOZbr0AqDjGGcYndt/oxMeLxaK9qvs2xIQARAQAB\ntDFGZWRvcmEgKDQxKSA8ZmVkb3JhLTQxLXByaW1hcnlAZmVkb3JhcHJvamVjdC5v\ncmc+iQJOBBMBCAA4FiEERmzy2LYLwwV6qUU+0GIkYumdatEFAmTSYSwCGw8FCwkI\nBwIGFQoJCAsCBBYCAwECHgECF4AACgkQ0GIkYumdatFHIQ//bTSVGDvJGmUxgHJw\nMnGM2G6Rc9PNAKuXbh6t4qsrRKp22pWNnMmqqcGaoiBxKP989a2cJgIVP49SsC4C\newaafEYhsitUtKagx6z3F7UObnvQpOz5U5iFcJCvRDtC4FXq+VkMdhT09zMZY4Ey\nia29bV1B1R7pe7yXh6l3WyVj9AAXUSEBR/OsakaYEMzScLnROBEU1YbWR9iHsc7M\nrEsqju8tVUh1XAqIqJgLW3VrKs0g0nDVR0rBc8aDhrtVfylwWVl61gHsPFJfAkjj\nOPgvQgThrhlCWo23EZSk/Hj8YRrnhUbEDnk+Z3Xv5Uyl1kxGRk5dGBnv+7u3CKvV\nG6sU3tPtna/8rFblfKSMZIPhzTADdsUZ88Fn9pZkfqgPi8LZ4sS8vHtaykZmbfj6\nt9a2mBYJQ+/pxiH8olzyhKMdNyesLPeQmESgwM/qlJ+b2Hbogwuuzp8o2JMezxIe\nCAwLoPh+hxMPGnBRklh6Vj5R5z29wIZd6pKCavVRfJ+ON94wuOSEofhBfQNZIIFV\njagEbk60iksysxsObfVEHFhtGnZCEgCRC87BfX6tzIIDv23Zs4Bv9gcaaRXTAml2\nkZXktduHkV9q3hhcoha5FgGSe244C4GsMUkWCsZtuN6tevUPo+n2ZZAA7ikQ768r\nIz9rPOI8/Ra7qnwSlNIVnkTb9bc=\n=e2ew\n-----END PGP PUBLIC KEY BLOCK-----\n"
+            ],
+            "exclude": {
+              "docs": true
+            }
+          }
+        },
+        {
           "type": "org.osbuild.uki",
           "options": {
             "filename": "linux.efi",
@@ -1536,6 +1556,7 @@
         "sha256:c4fb68b973c322d46ac9609b6a37204296b6a4f6d36cf37449afbf3d068ffe64": "https://rpmrepo.osbuild.org/v2/mirror/public/f41/f41-x86_64-updates-released-20241210/Packages/s/selinux-policy-targeted-41.26-1.fc41.noarch.rpm",
         "sha256:1084ac76ecb340a13654f7936bb13097cc7e837ef85e1a1fc850e002dc69c9d4": "https://rpmrepo.osbuild.org/v2/mirror/public/f41/f41-x86_64-updates-released-20241210/Packages/s/skopeo-1.17.0-1.fc41.x86_64.rpm",
         "sha256:44d86c20cc5b7bb50cafe46cc4f78c6f51ca339e88335b473edff080c0dd1536": "https://rpmrepo.osbuild.org/v2/mirror/public/f41/f41-x86_64-updates-released-20241210/Packages/s/systemd-256.9-2.fc41.x86_64.rpm",
+        "sha256:db2c222e6004fe403af2bc0a7dc1b6e0aa9627ef889850a51f3e0db499de023a": "https://rpmrepo.osbuild.org/v2/mirror/public/f41/f41-x86_64-updates-released-20241210/Packages/s/systemd-boot-unsigned-256.9-2.fc41.x86_64.rpm",
         "sha256:ccef6f43b1dec0462ebb995252b478e4abf7177cb6cfcc2956d3307b38be3a2c": "https://rpmrepo.osbuild.org/v2/mirror/public/f41/f41-x86_64-updates-released-20241210/Packages/s/systemd-libs-256.9-2.fc41.x86_64.rpm",
         "sha256:d6265af6240edf5debe5093c91509c456ac693ee8aa2ffa8e6b15d524e219495": "https://rpmrepo.osbuild.org/v2/mirror/public/f41/f41-x86_64-updates-released-20241210/Packages/s/systemd-networkd-256.9-2.fc41.x86_64.rpm",
         "sha256:b6f789f6e7e9acf83c3e354d92e834390760bc750e71e88d06938476a8531ce4": "https://rpmrepo.osbuild.org/v2/mirror/public/f41/f41-x86_64-updates-released-20241210/Packages/s/systemd-pam-256.9-2.fc41.x86_64.rpm",

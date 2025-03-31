@@ -69,7 +69,7 @@ def make_kernel_options(options) -> str:
 
 def main(tree, inputs, options) -> int:
     filename = options["filename"]
-    stub = "/usr/lib/systemd/boot/efi/linuxx64.efi.stub"
+    stub = os.path.join(tree, "usr/lib/systemd/boot/efi/linuxx64.efi.stub")
 
     sections = [
         "osrel",

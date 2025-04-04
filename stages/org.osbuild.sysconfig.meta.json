@@ -11,6 +11,7 @@
     "Network supports the params:",
     "  - networking(NETWORKING) of type boolean",
     "  - no_zero_conf(NOZEROCONF) of type boolean",
+    "  - neworking_ipv6(NETWORKING_IPV6) of type boolean",
     "Network-scripts supports the params:",
     "  - ifcfg - this parameter allows creation of 'ifcfg-*' files under",
     "    'network-scripts' subdirectory. 'ifcfg' type is object (dictionary) with",
@@ -68,6 +69,10 @@
           "networking": {
             "type": "boolean",
             "description": "Enables or disables networking"
+          },
+          "networking_ipv6": {
+            "type": "boolean",
+            "description": "Enables or disables ipv6 networking"
           },
           "no_zero_conf": {
             "type": "boolean",

@@ -56,12 +56,6 @@
         "/usr/share/crypto-policies/FIPS/opensshserver.txt"
       ]
     },
-    "/etc/crypto-policies/back-ends/openssl.config": {
-      "symlink": [
-        "/usr/share/crypto-policies/DEFAULT/openssl.txt",
-        "/usr/share/crypto-policies/FIPS/openssl.txt"
-      ]
-    },
     "/etc/crypto-policies/back-ends/openssl_fips.config": {
       "symlink": [
         "/usr/share/crypto-policies/DEFAULT/openssl_fips.txt",
@@ -94,14 +88,32 @@
     },
     "/etc/crypto-policies/state/CURRENT.pol": {
       "content": [
-        "sha256:346786a22907eb312957451eab288f88d9532c1dc84b0e90077fa7c84416dd7c",
-        "sha256:27f72c6245cb4218bd6b93b7d71a1ef395e77a04d145510121635fd6e11c44e6"
+        "sha256:5240433fbf6812d84a9aba98f42846e70b76bc33d827031d303a9dd2c9168d32",
+        "sha256:0f597d9fa56a7866fb6cd85764f00c245ad3a80fc385a80a9cca49716f414fe7"
       ]
     },
     "/etc/crypto-policies/state/current": {
       "content": [
         "sha256:ecae097fb02a733ac98c03d7527fd923d5c9607c6a02feb5f0d388375f3e70dc",
         "sha256:858dd9c983a8e87bbb242952b737f33499c99ff5fd8b377b218da3836357c874"
+      ]
+    },
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
       ]
     }
   }

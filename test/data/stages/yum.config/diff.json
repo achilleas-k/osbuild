@@ -1,10 +1,29 @@
 {
   "added_files": [
-    "/etc/yum.conf",
     "/etc/yum",
+    "/etc/yum.conf",
     "/etc/yum/pluginconf.d",
     "/etc/yum/pluginconf.d/langpacks.conf"
   ],
   "deleted_files": [],
-  "differences": {}
+  "differences": {
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
+      ]
+    }
+  }
 }

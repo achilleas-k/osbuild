@@ -3,5 +3,36 @@
     "/etc/kernel/cmdline"
   ],
   "deleted_files": [],
-  "differences": {}
+  "differences": {
+    "/boot/initramfs-6.15.8-200.fc42.x86_64.img": {
+      "content": [
+        "sha256:95a6b2278f3b4c08419b6c68562bf14ddda2341f1e00b41021004831933c1840",
+        "sha256:6de129397a0ca1dc18ac56c00442d77ec7933c81a859d2b6a6782bd84ea1dd69"
+      ]
+    },
+    "/boot/loader/entries/ffffffffffffffffffffffffffffffff-6.15.8-200.fc42.x86_64.conf": {
+      "content": [
+        "sha256:41dfab34c74de34c393fc7f08863a11bcdbb9219fa5768e4e04cba05e7a52e05",
+        "sha256:90bb536ced02f1a34f3a0562fff8f96c5a8de8bf0b4ac55152c550a55d59b6cb"
+      ]
+    },
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
+      ]
+    }
+  }
 }

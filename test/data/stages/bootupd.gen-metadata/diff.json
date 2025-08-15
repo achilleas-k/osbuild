@@ -12,7 +12,9 @@
     "/usr/lib/bootupd/updates/EFI/fedora/grubx64.efi",
     "/usr/lib/bootupd/updates/EFI/fedora/mmx64.efi",
     "/usr/lib/bootupd/updates/EFI/fedora/shim.efi",
-    "/usr/lib/bootupd/updates/EFI/fedora/shimx64.efi"
+    "/usr/lib/bootupd/updates/EFI/fedora/shimx64.efi",
+    "/usr/lib/ostree-boot/initramfs-6.15.8-200.fc42.x86_64.img-7ff1d51c02226130601b87740415b6230626543fdbfceaae2bb23ee9afc632dc",
+    "/usr/lib/ostree-boot/vmlinuz-6.15.8-200.fc42.x86_64-7ff1d51c02226130601b87740415b6230626543fdbfceaae2bb23ee9afc632dc"
   ],
   "deleted_files": [
     "/usr/lib/ostree-boot/efi/EFI",
@@ -28,7 +30,34 @@
     "/usr/lib/ostree-boot/grub2",
     "/usr/lib/ostree-boot/grub2/fonts",
     "/usr/lib/ostree-boot/grub2/fonts/unicode.pf2",
-    "/usr/lib/ostree-boot/grub2/grubenv"
+    "/usr/lib/ostree-boot/grub2/grubenv",
+    "/usr/lib/ostree-boot/initramfs-6.15.8-200.fc42.x86_64.img-66ce2a58ceb3c4fd31b45ff14571003fa1c37c40a8cc861c69ced5bf4f3f6772",
+    "/usr/lib/ostree-boot/vmlinuz-6.15.8-200.fc42.x86_64-66ce2a58ceb3c4fd31b45ff14571003fa1c37c40a8cc861c69ced5bf4f3f6772"
   ],
-  "differences": {}
+  "differences": {
+    "/usr/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/usr/lib/modules/6.15.8-200.fc42.x86_64/initramfs.img": {
+      "content": [
+        "sha256:eb48ecbeed97858ec618a192c7fa26f3f0f435c075ed53208e5ac1382ce8dea0",
+        "sha256:e964f3d4783f3de8d6f247884a102d343f69724820fdda2413bac507ee002fab"
+      ]
+    },
+    "/usr/lib/sysimage/rpm-ostree-base-db/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/usr/share/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    }
+  }
 }

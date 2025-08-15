@@ -1,8 +1,27 @@
 {
   "added_files": [
-    "/usr/lib/tmpfiles.d/sap.conf",
-    "/usr/lib/tmpfiles.d/example.conf"
+    "/usr/lib/tmpfiles.d/example.conf",
+    "/usr/lib/tmpfiles.d/sap.conf"
   ],
   "deleted_files": [],
-  "differences": {}
+  "differences": {
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
+      ]
+    }
+  }
 }

@@ -2,10 +2,28 @@
   "added_files": [],
   "deleted_files": [],
   "differences": {
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
     "/etc/ssh/sshd_config": {
       "content": [
-        "sha256:a7329525af126b8280fd52036f81df62a8f893ce8d917d787ac06ad6d6d1adaf",
-        "sha256:10ba8773be5caf8f70d275e3fb230a7ee5c4ae7b3674edfb6afdbf3639af5591"
+        "sha256:2bab87ba853dd7745998a1b808f4ac0df0d32e333cf6c41fa51117a7e3379e65",
+        "sha256:6a10868249aaf4a1fce2580ce76ca52515546fc190db394569991e1be7e5c117"
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
       ]
     }
   }

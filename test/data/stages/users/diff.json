@@ -1,6 +1,5 @@
 {
   "added_files": [
-    "/etc/.pwd.lock",
     "/etc/group-",
     "/etc/gshadow-",
     "/etc/passwd-",
@@ -53,20 +52,26 @@
   "differences": {
     "/etc/group": {
       "content": [
-        "sha256:1664e398cb8dca0e1cbc46668fc906130f54c12fc84c20a8f0229bd7bdf6ac1c",
-        "sha256:161c785b7126d8aa97d47fbc17e906be6980920e33b756086bc66e7ad15e51d7"
+        "sha256:8e07fdf8cb968a4e0642d23ca149488597bf66a1138e6130c15f8c610b9aafc1",
+        "sha256:32d8e032952468e865086c9b688d54935de7b910950810f03a6b4749ebc9054c"
       ]
     },
     "/etc/gshadow": {
       "content": [
-        "sha256:825bf1abf0aab3239e88a3c37dc1040297266dcf794cb3ac0ab225103d053b60",
-        "sha256:f18350de5e76e20d752d12fc1a635dce4045329f538bbdb009f3299446ba3ee0"
+        "sha256:494fbbf0a2a71bf4fcd89af5610163cd480e6c10bbbb20bb6e54484c225c711a",
+        "sha256:66667fd855d69e3405e62a09c5025bfd0e4927176f2b4d937f942c1edcc95e5b"
       ]
     },
     "/etc/passwd": {
       "content": [
         "sha256:20f397fda486be2f4a6199cf39e7ce4e2a99abcecb571574bd1b375ea0d99228",
         "sha256:15d468ab7c26ae9ed243a617d0f7e2efdccf41da5811eca2a24aa687b59e51d4"
+      ]
+    },
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
       ]
     },
     "/etc/shadow": {
@@ -85,6 +90,18 @@
       "content": [
         "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "sha256:54850a49b1fdc8e58f9d1837d6f233834a875e677962c2f6ba104fd8bc9440b4"
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
       ]
     }
   }

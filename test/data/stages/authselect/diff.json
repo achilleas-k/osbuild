@@ -10,8 +10,8 @@
     },
     "/etc/authselect/nsswitch.conf": {
       "content": [
-        "sha256:72873504fa9f732dda7ba92dee085230aa6b8fcb8a35ee02012e99e00db6901c",
-        "sha256:b937fe168a986798d2b32069e468c8a9a70368580e0aa775189fb7b3a4d1ca48"
+        "sha256:96b2e97841e2437b70db11a9b7a29936374e3dff22565e27d70cf364c94348b8",
+        "sha256:6a41d59ed4f976ebb280d08e6d759568662cc9745e8d1ea9395a986c99a698f2"
       ]
     },
     "/etc/authselect/password-auth": {
@@ -30,6 +30,24 @@
       "content": [
         "sha256:2e53f704372b6c7fb69cdc4dfd6c27456d642c83feff8b1588fa1f9cb1126cd0",
         "sha256:79fa077e26ecb548d2cd1140cec4763ffbe69141ebde732e01cd7978cc096046"
+      ]
+    },
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
       ]
     }
   }

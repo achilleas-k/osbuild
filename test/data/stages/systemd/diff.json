@@ -1,15 +1,34 @@
 {
   "added_files": [
-    "/etc/systemd/system/ldconfig.service",
-    "/etc/systemd/system/multi-user.target.wants/nftables.service",
-    "/etc/systemd/system/local-fs.target.requires",
-    "/etc/systemd/system/local-fs.target.requires/-.mount",
     "/etc/systemd/system-generators",
     "/etc/systemd/system-generators/systemd-sysv-generator",
+    "/etc/systemd/system/ldconfig.service",
+    "/etc/systemd/system/local-fs.target.requires",
+    "/etc/systemd/system/local-fs.target.requires/-.mount",
+    "/etc/systemd/system/multi-user.target.wants/nftables.service",
     "/usr/lib/systemd/system/-.mount"
   ],
   "deleted_files": [
     "/etc/systemd/system/multi-user.target.wants/sshd.service"
   ],
-  "differences": {}
+  "differences": {
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
+      ]
+    }
+  }
 }

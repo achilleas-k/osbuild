@@ -2,6 +2,12 @@
   "added_files": [],
   "deleted_files": [],
   "differences": {
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
     "/testfile1": {
       "uid": [
         0,
@@ -15,13 +21,13 @@
       ]
     },
     "/testfile3": {
-      "uid": [
-        0,
-        2000
-      ],
       "gid": [
         0,
         3000
+      ],
+      "uid": [
+        0,
+        2000
       ]
     },
     "/testfile4": {
@@ -37,13 +43,25 @@
       ]
     },
     "/testfile6": {
-      "uid": [
-        0,
-        2000
-      ],
       "gid": [
         0,
         3000
+      ],
+      "uid": [
+        0,
+        2000
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
       ]
     }
   }

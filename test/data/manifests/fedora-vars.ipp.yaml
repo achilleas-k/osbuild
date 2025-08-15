@@ -2,10 +2,10 @@ version: '2'
 
 mpp-vars:
   arch: x86_64
-  release: 41
+  release: 42
   releasever: f$release
-  snapshot: '20241107'
-  updates: '20241210'
+  snapshot: '20250512'
+  updates: '20250730'
   ref: fedora/$arch/osbuild
   isolabel: Fedora-$release-X86_64
   repos:

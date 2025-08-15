@@ -10,11 +10,6 @@
     "/var/lib/containers/storage/vfs",
     "/var/lib/containers/storage/vfs-containers",
     "/var/lib/containers/storage/vfs-containers/containers.lock",
-    "/var/lib/containers/storage/vfs/dir",
-    "/var/lib/containers/storage/vfs/dir/0da97f9fb353a8d6285145bc7a1b75a28652e80f60ab7479bf5b4ae67ffa37e8",
-    "/var/lib/containers/storage/vfs/dir/0da97f9fb353a8d6285145bc7a1b75a28652e80f60ab7479bf5b4ae67ffa37e8/hello.txt",
-    "/var/lib/containers/storage/vfs/dir/8c42be08e0e5abaacad063054dccf9ce176453c50f14aebc5b335077c79cef77",
-    "/var/lib/containers/storage/vfs/dir/8c42be08e0e5abaacad063054dccf9ce176453c50f14aebc5b335077c79cef77/README.md",
     "/var/lib/containers/storage/vfs-images",
     "/var/lib/containers/storage/vfs-images/805e972fbc4dfa74a616dcaafe0d9e9b4c548b8909b14ffb032aa20fa23d9ad6",
     "/var/lib/containers/storage/vfs-images/805e972fbc4dfa74a616dcaafe0d9e9b4c548b8909b14ffb032aa20fa23d9ad6/=bWFuaWZlc3Qtc2hhMjU2OjIxY2E2OGE2OWJiNTlhZDFhY2M5NzgwN2M2NDMyZmFjODJlMGVlNjk5YWJkODgyNmZjZTdlZDdhOWY0OTc3NjE=",
@@ -31,7 +26,12 @@
     "/var/lib/containers/storage/vfs-layers/0da97f9fb353a8d6285145bc7a1b75a28652e80f60ab7479bf5b4ae67ffa37e8.tar-split.gz",
     "/var/lib/containers/storage/vfs-layers/8c42be08e0e5abaacad063054dccf9ce176453c50f14aebc5b335077c79cef77.tar-split.gz",
     "/var/lib/containers/storage/vfs-layers/layers.json",
-    "/var/lib/containers/storage/vfs-layers/layers.lock"
+    "/var/lib/containers/storage/vfs-layers/layers.lock",
+    "/var/lib/containers/storage/vfs/dir",
+    "/var/lib/containers/storage/vfs/dir/0da97f9fb353a8d6285145bc7a1b75a28652e80f60ab7479bf5b4ae67ffa37e8",
+    "/var/lib/containers/storage/vfs/dir/0da97f9fb353a8d6285145bc7a1b75a28652e80f60ab7479bf5b4ae67ffa37e8/hello.txt",
+    "/var/lib/containers/storage/vfs/dir/8c42be08e0e5abaacad063054dccf9ce176453c50f14aebc5b335077c79cef77",
+    "/var/lib/containers/storage/vfs/dir/8c42be08e0e5abaacad063054dccf9ce176453c50f14aebc5b335077c79cef77/README.md"
   ],
   "differences": {}
 }

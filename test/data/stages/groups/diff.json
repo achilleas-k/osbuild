@@ -1,6 +1,5 @@
 {
   "added_files": [
-    "/etc/.pwd.lock",
     "/etc/group-",
     "/etc/gshadow-"
   ],
@@ -8,14 +7,14 @@
   "differences": {
     "/etc/group": {
       "content": [
-        "sha256:1664e398cb8dca0e1cbc46668fc906130f54c12fc84c20a8f0229bd7bdf6ac1c",
-        "sha256:889ae43a4e72bacc786d96d5abf684e1b6ee66374745be4665f77bce9198236f"
+        "sha256:8e07fdf8cb968a4e0642d23ca149488597bf66a1138e6130c15f8c610b9aafc1",
+        "sha256:2c3f7f497c46dfc68023dbec551cb3df1e2885a1b8f5b4b5a356da0b2fdf417a"
       ]
     },
     "/etc/gshadow": {
       "content": [
-        "sha256:825bf1abf0aab3239e88a3c37dc1040297266dcf794cb3ac0ab225103d053b60",
-        "sha256:9dc641c396ed6276fb1a2c8534737a96d627884a5ec08108b74a86be830fadae"
+        "sha256:494fbbf0a2a71bf4fcd89af5610163cd480e6c10bbbb20bb6e54484c225c711a",
+        "sha256:894ef39908a1097ee8c476309cce84d8c28f4e4448ac5ce0da82be13108aaf10"
       ]
     }
   }

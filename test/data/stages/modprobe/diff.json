@@ -1,9 +1,28 @@
 {
   "added_files": [
-    "/usr/lib/modprobe.d/disallow-modules.conf",
     "/usr/lib/modprobe.d/disallow-additional-modules.conf",
+    "/usr/lib/modprobe.d/disallow-modules.conf",
     "/usr/lib/modprobe.d/firewalld-sysctls.conf"
   ],
   "deleted_files": [],
-  "differences": {}
+  "differences": {
+    "/etc/pki/ca-trust/extracted/java/cacerts": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
+      ]
+    }
+  }
 }

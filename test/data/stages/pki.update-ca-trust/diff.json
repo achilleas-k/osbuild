@@ -3,7 +3,9 @@
     "/etc/pki/ca-trust/extracted/pem/directory-hash/7cf11c08.0",
     "/etc/pki/ca-trust/extracted/pem/directory-hash/Test_CA_for_osbuild.pem",
     "/etc/pki/ca-trust/extracted/pem/directory-hash/a521c9ed.0",
-    "/etc/pki/ca-trust/source/anchors/sha256:4c4e8c734e4ee3a117ca8f9363ba7b706d02bfc8f297c00b02ce02babddef51c"
+    "/etc/pki/ca-trust/source/anchors/sha256:4c4e8c734e4ee3a117ca8f9363ba7b706d02bfc8f297c00b02ce02babddef51c",
+    "/etc/pki/tls/certs/7cf11c08.0",
+    "/etc/pki/tls/certs/a521c9ed.0"
   ],
   "deleted_files": [],
   "differences": {
@@ -41,6 +43,18 @@
       "content": [
         "sha256:acd28b791f9f338d288efda11d7f192755d4e89f41f0f7c2999bb4d211779fe5",
         "sha256:ccbf79f86fa61d1dad44ed9481a8dab6973b91a0187798e43bbb29c4be9095f2"
+      ]
+    },
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
+      "content": [
+        null,
+        null
+      ]
+    },
+    "/var/cache/ldconfig/aux-cache": {
+      "content": [
+        null,
+        null
       ]
     }
   }

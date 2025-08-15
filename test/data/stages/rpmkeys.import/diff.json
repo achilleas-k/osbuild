@@ -1,0 +1,14 @@
+{
+  "added_files": [
+    "/usr",
+    "/usr/lib",
+    "/usr/lib/sysimage",
+    "/usr/lib/sysimage/rpm",
+    "/usr/lib/sysimage/rpm/.rpm.lock",
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite",
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite-shm",
+    "/usr/lib/sysimage/rpm/rpmdb.sqlite-wal"
+  ],
+  "deleted_files": [],
+  "differences": {}
+}

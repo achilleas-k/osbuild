@@ -81,9 +81,18 @@ def main():
     # update stage test diffs (requires root)
     with TemporaryDirectory() as tmpdir:
         for stage_test in modified_paths:
+            stage_test_path = pathlib.Path(stage_test)
+            # some stage tests don't contain an 'a' and 'b' manifest to create a 'diff' (e.g. sgdisk)
+            # skip the diff generation if a.json is not found
+            a_path = stage_test_path / "a.json"
+            if not a_path.exists():
+                print(f"No diff.json generation for {stage_test_path} required (no a.json found)")
+                continue
+
+            print(f"Generating diff.json for {stage_test_path}")
             newdiff = sp.check_output(["./tools/gen-stage-test-diff", "--libdir=.", f"--store={tmpdir}", stage_test],
                                       encoding="utf-8")
-            diff_file = pathlib.Path(stage_test) / "diff.json"
+            diff_file = stage_test_path / "diff.json"
             diff_file.write_text(newdiff)
 
 

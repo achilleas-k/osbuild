@@ -18,9 +18,12 @@ def read_schutzfile():
         return json.load(schutzfile)
 
 
-def find_snapshot_date(distro, arch, schutzfile):
-    # Each distro can have multiple lists of repositories. We assume all share the same snapshot date, so we only check
-    # the first one.
+def find_snapshot_dates(distro, arch, schutzfile):
+    # Fedora distros have a 'fedora' and a 'fedora-updates' repo which have different snapshot dates.
+    # CentOS and RHEL have multiple repos which all share the same snapshot date.
+
+    Handle Centos and Fedora separately
+
     repos = schutzfile[distro]["repos"][0][arch]
     first_url = repos[0]["baseurl"]
     return first_url.split("-")[-1]
@@ -58,7 +61,7 @@ def main():
             print("Failed to update ipp.vars files.", file=sys.stderr)
             sys.exit(1)
 
-        schutzfile_date = find_snapshot_date(distro, arch, schutzfile)
+        schutzfile_dates = find_snapshot_dates(distro, arch, schutzfile)
         if vars_date == schutzfile_date:
             print(f"{vars_file}:\n  Snapshot dates match: {vars_date}")
             continue
@@ -69,6 +72,8 @@ def main():
         with vars_file.open(mode="w", encoding="utf-8") as vfp:
             yaml.dump(vars_data, vfp)
 
+    if True:
+        sys.exit(0)
     # regenerate all test manifests
     # requires root because osbuild-mpp requires loop device creation to generate certain manifests
     sp.check_call(["make", "test-data"])

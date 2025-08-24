@@ -146,7 +146,7 @@ Let's put some stages together and write a simple but complete and valid manifes
   "version": "2",
   "pipelines": [
     {
-      "name": "example",
+      "name": "tree",
       "stages": [
         {
           "type": "org.osbuild.truncate",
@@ -178,7 +178,7 @@ $ osbuild example-1.json
 
 The output should be:
 ```
-example:  	fa0e466784d49682a1b7b3cb129b7a75b16bff9c2aed6aee3f0f1988056ce85a
+tree:  	fa0e466784d49682a1b7b3cb129b7a75b16bff9c2aed6aee3f0f1988056ce85a
 ```
 
 Alternatively, you can call it with the `--inspect` option to get:
@@ -187,7 +187,7 @@ Alternatively, you can call it with the `--inspect` option to get:
   "version": "2",
   "pipelines": [
     {
-      "name": "example",
+      "name": "tree",
       "stages": [
         {
           "type": "org.osbuild.truncate",
@@ -251,7 +251,7 @@ Undo the change made in the [Invalid manifest](#invalid-manifest) section so tha
 
 Run the manifest through osbuild with the following options:
 ```
-$ sudo osbuild --export example --output-directory output/1 example-1.json
+$ sudo osbuild --export tree --output-directory output/1 example-1.json
 ```
 Notice that we used `sudo` to run osbuild now. When generating a tree, osbuild must be run as root. Superuser privileges are required for some of osbuild's inner workings and for certain stages.
 
@@ -261,7 +261,8 @@ The `--output-directory` option should be self-explanatory. The result of each p
 
 The output from the command should be:
 ```
-starting example-1.jsonPipeline example: fa0e466784d49682a1b7b3cb129b7a75b16bff9c2aed6aee3f0f1988056ce85a
+starting example-1.json
+Pipeline example: fa0e466784d49682a1b7b3cb129b7a75b16bff9c2aed6aee3f0f1988056ce85a
 Build
   root: <host>
   runner: org.osbuild.fedora38 (org.osbuild.fedora38)
@@ -291,31 +292,30 @@ Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
 
 ⏱  Duration: 0s
 manifest example-1.json finished successfully
-example:  	fa0e466784d49682a1b7b3cb129b7a75b16bff9c2aed6aee3f0f1988056ce85a
+tree:  	fa0e466784d49682a1b7b3cb129b7a75b16bff9c2aed6aee3f0f1988056ce85a
 ```
 
 The `failed to resolve user` and `group` messages might be different but they can be ignored. The output tells us that the run was successful (`manifest example-1.json finished successfully`). It also shows us the runtime duration for each stage and the output it produces while running it. Stages that call out to other commands usually don't capture the output of those commands unless they have to, and instead display it directly in the build log. Some stages also print their own log output. In many cases the output is useful for tracing and troubleshooting a stage's execution.
 
-The tree under `output/` should look like this:
+The tree under `output/1/` should look like this:
 ```
-$ tree output
-output
-└── 1
-    └── example
-        └── newfile
+$ tree output/1
+output/1
+└── tree
+    └── newfile
 
 2 directories, 1 file
 ```
 
 and looking at the file's properties, we should see:
 ```
-$ ls -lh output/example/newfile
--r--r--r--. 1 root root 1.0G 2025-06-08 13:48 output/example/newfile
+$ ls -lh output/1/tree/newfile
+-r--r--r--. 1 root root 1.0G 2025-06-08 13:48 output/1/tree/newfile
 ```
 
 None of this should be a surprise now. We have a file called `newfile` at the root of the exported tree, its size is 1 GiB, and its permissions are set to read-only for everyone.
 Our manifest caused osbuild to essentially run the following:
-```sh
+```bash
 truncate --size=1G <tree>/newfile  # org.osbuild.truncate stage
 chmod 0444 <tree>/newfile          # org.osbuild.chmod stage
 ```
@@ -332,8 +332,8 @@ echo "starting example-1.json"
 truncate --size=1G "$tree/newfile"  # org.osbuild.truncate stage
 chmod 0444 "$tree/newfile"          # org.osbuild.chmod stage
 eco "manifest example-1.json finished successfully"
-mkdir -p output/example
-cp -a "$tree" output/example        # final export to output directory
+mkdir -p output/1/tree
+cp -a "$tree" output/1/tree           # final export to output directory
 rm -r "$tree"                       # clean up leftover data
 ```
 
@@ -607,3 +607,103 @@ Inputs for a stage are defined as a map, with keys used to name the input for th
 For the `org.osbuild.copy` stage, the name (key) of each input is arbitrary. However, some stages define a required name for their input in their schema, such as the `org.osbuild.xz` stage which requires its single input file to be named `file`.
 
 When a stage accepts inputs, they are also referenced in the relevant stage option. In the `org.osbuild.copy` stage, our two inputs are referenced in the `from` part of the two `paths` objects. The format of those values is also important to mention. The general form of the values are `input://<name>/<id>`, which simply means that the file to reference is an `input` defined under the name `<name>` and has ID (checksum) `<id>`.
+
+### Build the manifest with sources
+
+Build the second example and export the pipeline:
+```
+$ sudo osbuild --export res --output-directory output/2 example-2.json
+```
+
+The output from the command will look like this:
+```
+starting example-2.json
+Pipeline source org.osbuild.inline: 02340d3c6f6066a404c62d82b7e05ab3ed57262f20743b159798efea27cde6e3
+Build
+  root: <host>
+
+⏱  Duration: 1756030856s
+Pipeline source org.osbuild.curl: 14132afec9fc2e62f13c5850d7bb4a5fb5906277dba9ca0914cfc5ddf8703325
+Build
+  root: <host>
+source/org.osbuild.curl (org.osbuild.curl): Downloaded http://localhost:8080/curl-source-file.txt
+
+⏱  Duration: 1756030856s
+Pipeline res: a84f99ff31bda4f4360dc7a93e0fb07c080909eaf4e8a9b3caf6066303c0b082
+Build
+  root: <host>
+  runner: org.osbuild.fedora38 (org.osbuild.fedora38)
+org.osbuild.mkdir: 22d5fa2cb7a2f19695f5ec64afb01e024cebd36dc20be7b114c96b9e3526bef5 {
+  "paths": [
+    {
+      "path": "/resources"
+    }
+  ]
+}
+/usr/lib/tmpfiles.d/abrt.conf:2: Failed to resolve user 'abrt': No such process
+/usr/lib/tmpfiles.d/abrt.conf:9: Failed to resolve user 'abrt': No such process
+Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
+
+⏱  Duration: 0s
+org.osbuild.copy: a84f99ff31bda4f4360dc7a93e0fb07c080909eaf4e8a9b3caf6066303c0b082 {
+  "paths": [
+    {
+      "from": "input://inlinefile/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7",
+      "to": "tree:///resources/inline-file"
+    },
+    {
+      "from": "input://curlfile/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727",
+      "to": "tree:///resources/curl-file"
+    }
+  ]
+}
+/usr/lib/tmpfiles.d/abrt.conf:2: Failed to resolve user 'abrt': No such process
+/usr/lib/tmpfiles.d/abrt.conf:9: Failed to resolve user 'abrt': No such process
+Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
+copying '/run/osbuild/inputs/inlinefile/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7' -> '/run/osbuild/tree/resources/inline-file'
+copying '/run/osbuild/inputs/curlfile/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727' -> '/run/osbuild/tree/resources/curl-file'
+
+⏱  Duration: 0s
+manifest example-2.json finished successfully
+res:            a84f99ff31bda4f4360dc7a93e0fb07c080909eaf4e8a9b3caf6066303c0b082
+```
+
+The exported directory will look like this:
+```
+› tree output/2
+output/2
+└── res
+    └── resources
+        ├── curl-file
+        └── inline-file
+
+3 directories, 2 files
+```
+
+Let's write out the pipeline in bash again to see a simplified representation of osbuild's operation:
+```bash
+#!/usr/bin/bash
+
+tree=$(mktemp -d)
+store=".osbuild"
+mkdir -p "$store"
+
+mkdir -p "$tree"
+echo "starting example-2.json"
+
+# sources
+curl -s http://localhost:8080/curl-source-file.txt -o "${store}/sources/org.osbuild.files/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727"
+echo "SSBhbSBhbiBpbmxpbmUgZmlsZQo=" | base64 -d - > "${store}/sources/org.osbuild/files/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7"
+
+# stages
+mkdir -p "${tree}/resources"
+cp "${store}/sources/org.osbuild.files/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727" "${tree}/resources/curl-file"
+cp "${store}/sources/org.osbuild/files/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7" "${tree}/resources/inline-file"
+
+echo "manifest example-2.json finished successfully"
+
+# export
+mkdir -p output/2/res
+cp -a "$tree" output/2/res
+rm -r "$tree"
+```

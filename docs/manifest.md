@@ -173,7 +173,7 @@ Let's put some stages together and write a simple but complete and valid manifes
 
 Save this to a file called `example-1.json` and validate it using osbuild with the following command:
 ```
-osbuild example-1.json
+$ osbuild example-1.json
 ```
 
 The output should be:
@@ -232,7 +232,7 @@ Make a small modification to `example-1.json` so that the `org.osbuild.truncate`
 
 and run it through osbuild:
 ```
-osbuild example-1.json
+$ osbuild example-1.json
 ```
 
 The output should be:
@@ -251,7 +251,7 @@ Undo the change made in the [Invalid manifest](#invalid-manifest) section so tha
 
 Run the manifest through osbuild with the following options:
 ```
-sudo osbuild --export example --output-directory output/1 example-1.json
+$ sudo osbuild --export example --output-directory output/1 example-1.json
 ```
 Notice that we used `sudo` to run osbuild now. When generating a tree, osbuild must be run as root. Superuser privileges are required for some of osbuild's inner workings and for certain stages.
 
@@ -341,7 +341,7 @@ The setup and cleanup parts aren't entirely accurate, and they don't cover every
 
 ## Sources and Inputs
 
-Sources can be used to retrieve resources from outside the build before starting to process a manifest. Inputs are used to bind those resources to a stage and make them available during the stage's run.
+Sources can be used to retrieve resources from outside the build environment before starting to process a manifest. Inputs are used to bind those resources to a stage and make them available during the stage's run.
 
 The two most general purpose sources are `org.osbuild.inline` and `org.osbuild.curl`. The former is used to define files and data "in-line", meaning the data is defined in the manifest itself. This is useful for small text or binary files that are not available through a URL or path and are small enough to be defined as a string in the manifest. The latter, `org.osbuild.curl`, uses `curl` to download files from a URL or path.
 
@@ -477,20 +477,27 @@ $ sha256sum <<< "I am an inline file"
 659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7  -
 ```
 
-To demonstrate the `org.osbuild.curl` stage, let's pretend we have a file that we want to pull into the build process, but instead of getting it from a web server, we'll use `curl` to copy it from a local directory using a `file://` URL.
+To demonstrate the `org.osbuild.curl` stage, we'll run a local web server using Python's built-in `http.server` module.
 
-Create a file called `curl-source-file.txt` with the following content:
+Create a file called `curl-source-file.txt` with the following content (with a newline at the end):
 ```
 I am a file on the web
 ```
-and calculate its sha256 sum:
+calculate its sha256 sum:
 ```
-› sha256sum ./curl-source-file.txt
+$ sha256sum ./curl-source-file.txt
 29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727  ./curl-source-file.txt
-a
+```
+and serve it using the http server on port 8080:
+```
+$ python3 -m http.server --directory . 8080
 ```
 
-Note: To reference the file in the manifest, we'll use its absolute path. In the examples we'll be referring to this path as `/path/to/curl-source-file.txt`. Replace any occurrence with the real path when following this guide.
+Let's first do a quick check of our setup before writing the manifest:
+```
+$ curl http://localhost:8080/curl-source-file.txt
+I am a file on the web
+```
 
 The curl source for this file will now look like this:
 ```json
@@ -498,7 +505,7 @@ The curl source for this file will now look like this:
   "org.osbuild.curl": {
     "items": {
       "sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727": {
-        "url": "file:///path/to/curl-source-file.txt"
+        "url": "http://localhost:8080/curl-source-file.txt"
       }
     }
   }

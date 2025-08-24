@@ -36,18 +36,19 @@ The last top-level property is something we haven't mentioned so far: `sources`.
 
 ## Pipelines
 
-As mentioned above, a pipeline is defined as a series of stages that operate on a filesystem tree. At the start of a pipeline, the tree is completely new and empty. Each stage modifies the tree in a specific way, transforming it step by step towards a desired end state. Consider a pipeline with the following series of stages:
+As mentioned above, a pipeline is defined as a series of stages that operate on a filesystem tree. At the start of a pipeline, the tree is completely new and empty. Each stage modifies the tree in a specific way, transforming it step by step towards a desired end state. We haven't described stages in depth yet but, for now, it's enough to think of them as single-purpose executables. With that in mind, consider a pipeline with the following series of stages:
 1. org.osbuild.rpm
 2. org.osbuild.locale
 3. org.osbuild.timezone
 
 The first stage, `org.osbuild.rpm`, will install a set of rpms into the new, empty tree (we'll see where those rpms come from and how they're defined later). `org.osbuild.locale` will set the system locale and `org.osbuild.timezone` sets the system timezone.
-If we assume the rpms installed in the first stage are everything included in the `@core` Fedora package group, it's not hard to imagine what the resulting filesystem tree will look like. It will be the full tree of an operating system, composed of all the files that come from the `@core` packages, and two extra or modified files, `etc/localtime` and `etc/locale.conf` set to the desired values.
+If we assume the rpms installed in the first stage are the ones included in the `@core` Fedora package group, it's not hard to imagine what the resulting filesystem tree will look like. It will be the full tree of an operating system, composed of all the files that come from the `@core` packages, and two extra or modified files, `etc/localtime` and `etc/locale.conf` set to the desired values.
 This is actually a simplified version of the pipeline that's used in practice to create the operating system tree for most conventional images.
 
 ## Stages
 
-Stages are little single-purpose executables, each identified by a unique name (`type`). Stages are defined in the `stages/` directory of the osbuild source tree and are installed in the `stages/` directory of the osbuild libdir (typically, `/usr/lib/osbuild/`). Most stage types are named after the tool they invoke (prefixed by `org.osbuild.`), so if the name of a stage looks like a command or program you're familiar with, that's probably what it's calling. For example, `org.osbuild.tar`, `org.osbuild.truncate`, and `org.osbuild.rpm` run `tar`, `truncate`, and `rpm` respectively. Stage options usually map to command line options and flags, though they usually only implement the ones necessary for image building. More stage options are added as the need arises.
+Stages, as we already mentioned, are little single-purpose executables, each identified by a unique name (`type`). Stages are defined in the `stages/` directory of the osbuild source tree and are installed in the `stages/` directory of the osbuild libdir (typically, `/usr/lib/osbuild/`). Most stage types are named after the tool they invoke, so if the name of a stage looks like a command or program you're familiar with, that's probably what it's calling. For example, `org.osbuild.tar`, `org.osbuild.truncate`, and `org.osbuild.rpm` run `tar`, `truncate`, and `rpm` respectively. The `org.osbuild.` prefix serves as a namespace for the official upstream stages. This allows external stages to be included and used while avoiding name collisions.
+Most stage types define a set of options that they support. Stage options usually map to command line options and flags, though they usually only implement the ones necessary for image building. More stage options are added as the need arises.
 The options that a stage supports are defined in an accompanying jsonschema, stored alongside a stage with the `.meta.json` suffix. Looking at the `org.osbuild.truncate` stage as a simple example, the schema is currently defined as follows:
 ```json
 {
@@ -242,7 +243,7 @@ example-1.json has errors:
   'size' is a required property
 ```
 
-This tells us that the options of the first stage (`stages[0]`) of the first pipeline (`pipelines[0]`) failed to validate against the schema, because `'size' is a required property`. In other words, the truncate stage requires the size option to be specified. If we look at the stage scheme again, we'll see that in fact both `filename` and `size` are required.
+This tells us that the `options` of the first stage (`stages[0]`) of the first pipeline (`pipelines[0]`) failed to validate against the schema, because `'size' is a required property`. In other words, the truncate stage requires the size option to be specified. If we look at the stage scheme again, we'll see that in fact both `filename` and `size` are listed in the `required` array.
 
 ## Producing a tree
 
@@ -254,7 +255,7 @@ sudo osbuild --export example --output-directory output/1 example-1.json
 ```
 Notice that we used `sudo` to run osbuild now. When generating a tree, osbuild must be run as root. Superuser privileges are required for some of osbuild's inner workings and for certain stages.
 
-The `--export` option tells osbuild which pipeline to export. Most useful manifests define multiple pipelines, many of which are used as intermediate steps in the build process. Usually, we only need to export one pipeline, the last one, but it's often useful to export multiple pipelines. In those cases, the `--export` option can be specified multiple times.
+The `--export` option tells osbuild which pipeline to export. Most useful manifests define multiple pipelines, many of which are used as intermediate steps in the build process. Usually, we only need to export one pipeline, the last one, but it's also sometimes useful to export multiple pipelines. In those cases, the `--export` option can be specified multiple times.
 
 The `--output-directory` option should be self-explanatory. The result of each pipeline listed in the `--export` options will be placed in this directory under a subdirectory with the pipeline's name.
 
@@ -312,7 +313,7 @@ $ ls -lh output/example/newfile
 -r--r--r--. 1 root root 1.0G 2025-06-08 13:48 output/example/newfile
 ```
 
-This should all be expected. We have a file called `newfile` at the root of the exported tree, its size is 1 GiB, and its permissions are set to read-only for everyone.
+None of this should be a surprise now. We have a file called `newfile` at the root of the exported tree, its size is 1 GiB, and its permissions are set to read-only for everyone.
 Our manifest caused osbuild to essentially run the following:
 ```sh
 truncate --size=1G <tree>/newfile  # org.osbuild.truncate stage

@@ -578,7 +578,7 @@ Putting it all together, we now have our second example manifest, `example-2.jso
     "org.osbuild.curl": {
       "items": {
         "sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727": {
-          "url": "file:///home/achilleas/projects/osbuild/guide/curl-source-file.txt"
+          "url": "http://localhost:8080/curl-source-file.txt"
         }
       }
     }

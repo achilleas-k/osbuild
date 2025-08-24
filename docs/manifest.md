@@ -1304,4 +1304,48 @@ Note: Don't forget to `umount /mnt` before moving on.
 
 Mount modules are used to prepare mounts for stages. Usually, they are used to mount filesystems to a path so that they can be used for writing. Other mount types also exist, such as `org.osbuild.bind`, to bind mount directories to different paths, and `org.osbuild.ostree.deployment`, which sets up all needed bind mounts for a tree to look like an ostree deployment. For this example, we will only use the `org.osbuild.ext4` mount to write files to our ext4-formatted disk image.
 
-To write files to our disk image, we will use an `org.osbuild.copy` stage. The source tree for the stage, the `from` path, will be a pipeline tree that we will define as an input, much like we used for the `org.osbuild.tar` stage in example 3. 
+To write files to our disk image, we will use an `org.osbuild.copy` stage. The source tree for the stage, the `from` path, will be a pipeline tree that we will define as an input, much like we used for the `org.osbuild.tar` stage in example 3. The destination tree for the stage, the `to` path, will be the mountpoint created by the `org.osbuild.ext4` mount module.
+
+Here's a preview of what the `org.osbuild.copy` stage will look like:
+```json
+{
+  "type": "org.osbuild.copy",
+  "inputs": {
+    "files-tree": {
+      "type": "org.osbuild.tree",
+      "origin": "org.osbuild.pipeline",
+      "references": [
+        "name:files"
+      ]
+    }
+  },
+  "options": {
+    "paths": [
+      {
+        "from": "input://files-tree/",
+        "to": "mount://mnt/"
+      }
+    ]
+  },
+  "devices": {
+    "image": {
+      "type": "org.osbuild.loopback",
+      "options": {
+        "filename": "image.raw"
+      }
+    }
+  },
+  "mounts": [
+    {
+      "name": "mnt",
+      "type": "org.osbuild.ext4",
+      "source": "image",
+      "target": "/"
+    }
+  ]
+}
+```
+This instance of the `org.osbuild.copy` stage looks very different from the previous one we used, so let's explain it all.
+
+- `devices`: The devices section uses the same `org.osbuild.loopback` device type that we used to create the ext4 filesystem in example 4. The section supports defining multiple devices and the key for each device becomes an identifier. The example provides a device with name `image` that we can reference elsewhere.
+- `mounts`: The mounts section is a list of mounts. Each mount can have a different type and must have a unique `name` and `target`. The `source` must be a device identifier defined in the `devices` section. This means that a mountpoint is created at each `target` from the `source` device. The `name` becomes an identifier for the mount so it can be referenced elsewhere. The example mounts the `image` device at `/` as an ext4 filesystem. The `target` path is relative to the osbuild mounts tree for the stage (see below).

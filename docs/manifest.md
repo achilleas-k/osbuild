@@ -319,7 +319,7 @@ Our manifest caused osbuild to essentially run the following:
 truncate --size=1G <tree>/newfile  # org.osbuild.truncate stage
 chmod 0444 <tree>/newfile          # org.osbuild.chmod stage
 ```
-were `<tree>` is the root of the tree for the pipeline.
+where `<tree>` is the root of the tree for the pipeline.
 
 If we also consider the preparation and output parts of osbuild's inner workings, we can write a script in bash that does more or less the same work as osbuild did with the specific manifest:
 ```bash

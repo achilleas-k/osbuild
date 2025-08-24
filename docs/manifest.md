@@ -331,10 +331,10 @@ mkdir -p "$tree"                    # create working directory for pipeline
 echo "starting example-1.json"
 truncate --size=1G "$tree/newfile"  # org.osbuild.truncate stage
 chmod 0444 "$tree/newfile"          # org.osbuild.chmod stage
-eco "manifest example-1.json finished successfully"
+echo "manifest example-1.json finished successfully"
 mkdir -p output/1/tree
-cp -a "$tree" output/1/tree           # final export to output directory
-rm -r "$tree"                       # clean up leftover data
+cp -a "${tree}/." output/1/tree         # final export to output directory
+rm -rf "$tree"                      # clean up leftover data
 ```
 
 The setup and cleanup parts aren't entirely accurate, and they don't cover everything that osbuild does to run a manifest, far from it, but for this case, they adequately capture the general idea of what osbuild is doing.
@@ -692,18 +692,23 @@ mkdir -p "$tree"
 echo "starting example-2.json"
 
 # sources
+mkdir -p "${store}/sources/org.osbuild.files"
 curl -s http://localhost:8080/curl-source-file.txt -o "${store}/sources/org.osbuild.files/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727"
-echo "SSBhbSBhbiBpbmxpbmUgZmlsZQo=" | base64 -d - > "${store}/sources/org.osbuild/files/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7"
+echo "SSBhbSBhbiBpbmxpbmUgZmlsZQo=" | base64 -d - > "${store}/sources/org.osbuild.files/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7"
 
 # stages
 mkdir -p "${tree}/resources"
 cp "${store}/sources/org.osbuild.files/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727" "${tree}/resources/curl-file"
-cp "${store}/sources/org.osbuild/files/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7" "${tree}/resources/inline-file"
+cp "${store}/sources/org.osbuild.files/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7" "${tree}/resources/inline-file"
 
 echo "manifest example-2.json finished successfully"
 
 # export
 mkdir -p output/2/res
-cp -a "$tree" output/2/res
-rm -r "$tree"
+cp -a "${tree}/." output/2/res
+rm -rf "$tree"
 ```
+
+## The osbuild cache
+
+In the bash script we wrote for the second example, we created `.osbuild` in the working directory. This is the default location for osbuild's working directories and file cache. The location of this directory can be controlled with the `--cache` option (or its alias, `--store`). In the script, we used this to store the sources, both the inline file and the file downloaded using `curl`. This partially mimics the real osbuild store. Artifacts defined in `sources` are stored under `.osbuild/sources/` in subdirectories named after each `input` type they produce (e.g. `org.osbuild.files`, `org.osbuild.containers`, etc). Since `org.osbuild.curl` and `org.osbuild.inline` both produce `org.osbuild.file` artifacts, both files are stored under `.osbuild/sources/org.osbuild.files/`. Files are stored using their sha256 hash, so they are content-addressable. Files under `.osbuild/sources/` are kept after a build is finished, so subsequent builds of any manifest that uses the same files do not need to retrieve these resources again.

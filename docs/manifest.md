@@ -1193,7 +1193,7 @@ The complete manifest that produces a formatted disk is:
 ```json
 {
   "version": "2",
-    "pipelines": [
+  "pipelines": [
     {
       "name": "disk",
       "stages": [
@@ -1351,3 +1351,139 @@ This instance of the `org.osbuild.copy` stage looks very different from the prev
 - `mounts`: The mounts section is a list of mounts. Each mount can have a different type and must have a unique `name` and `target`. The `source` must be a device identifier defined in the `devices` section. This means that a mountpoint is created at each `target` from the `source` device. The `name` becomes an identifier for the mount so it can be referenced elsewhere. The example mounts the `image` device at `/` as an ext4 filesystem. The `target` path is relative to the osbuild mounts tree for the stage (see below). Mount order is significant. Since mountpoints can be nested, each is mounted in order and unmounted in reverse order, so that filesystem trees can be created with mountpoints under other mountpoints, e.g. `/` first followed by `/boot/efi`.
 - `inputs`: The inputs section is the same we've seen before. The `files-tree` key names and identifies the input, which references the tree of a pipeline with name `files`.
 - `options`: We have only one pair of `from`/`to` paths here. The `from` path is the same we've seen before. It refers to an input by name, `input://files-tree/`, which will be resolved to the `files-tree` pipeline input, which refers to the `files` pipeline. The `to` path uses the `mount://` prefix, therefore it will be resolved to an element in the `mounts` array. The name used in the path is `mnt`, so it will be resolved to the mount with that name (which in this case is the only mount).
+
+To populate the `files` tree, we'll use the pipeline from example 2, which uses a single `org.osbuild.copy` stage to place files under the `resources/` directory. Then we'll define a second pipeline to create the formatted disk image and copy the files into the filesystem.
+
+The full example manifest will therefore be as follows:
+```json
+{
+  "version": "2",
+  "pipelines": [
+    {
+      "name": "files",
+      "stages": [
+        {
+          "type": "org.osbuild.mkdir",
+          "options": {
+            "paths": [
+              {
+                "path": "/resources"
+              }
+            ]
+          }
+        },
+        {
+          "type": "org.osbuild.copy",
+          "options": {
+            "paths": [
+              {
+                "from": "input://inlinefile/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7",
+                "to": "tree:///resources/inline-file"
+              },
+              {
+                "from": "input://curlfile/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727",
+                "to": "tree:///resources/curl-file"
+              }
+            ]
+          },
+          "inputs": {
+            "inlinefile": {
+              "type": "org.osbuild.files",
+              "origin": "org.osbuild.source",
+              "references": [
+                "sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7"
+              ]
+            },
+            "curlfile": {
+              "type": "org.osbuild.files",
+              "origin": "org.osbuild.source",
+              "references": [
+                "sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "disk",
+      "stages": [
+        {
+          "type": "org.osbuild.truncate",
+          "options": {
+            "filename": "/disk.raw",
+            "size": "1G"
+          }
+        },
+        {
+          "type": "org.osbuild.mkfs.ext4",
+          "options": {
+            "uuid": "90f06397-4919-4dc0-aab3-f42d01d2de4f"
+          },
+          "devices": {
+            "device": {
+              "type": "org.osbuild.loopback",
+              "options": {
+                "filename": "/disk.raw"
+              }
+            }
+          }
+        },
+        {
+          "type": "org.osbuild.copy",
+          "inputs": {
+            "files-tree": {
+              "type": "org.osbuild.tree",
+              "origin": "org.osbuild.pipeline",
+              "references": [
+                "name:files"
+              ]
+            }
+          },
+          "options": {
+            "paths": [
+              {
+                "from": "input://files-tree/",
+                "to": "mount://mnt/"
+              }
+            ]
+          },
+          "devices": {
+            "image": {
+              "type": "org.osbuild.loopback",
+              "options": {
+                "filename": "disk.raw"
+              }
+            }
+          },
+          "mounts": [
+            {
+              "name": "mnt",
+              "type": "org.osbuild.ext4",
+              "source": "image",
+              "target": "/"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "org.osbuild.inline": {
+      "items": {
+        "sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7": {
+          "encoding": "base64",
+          "data": "SSBhbSBhbiBpbmxpbmUgZmlsZQo="
+        }
+      }
+    },
+    "org.osbuild.curl": {
+      "items": {
+        "sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727": {
+          "url": "http://localhost:8080/curl-source-file.txt"
+        }
+      }
+    }
+  }
+}
+```

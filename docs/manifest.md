@@ -15,7 +15,7 @@ In addition to osbuild contributors, this guide is useful for:
 
 At its code, osbuild is a pipeline processor. It reads instructions from a json file (manifest) and executes them in order, transforming a filesystem tree (directory) at each step of the process. Each pipeline consists of a series of instructions (stages). It starts with an empty filesystem tree and each stage modifies it in a specific way. Typically, but not always, these modifications work towards creating an operating system image. However, there is nothing inherent to the design or structure of a manifest that explicitly enables building operating system artifacts. It is through the choice of stages and certain parts of osbuild's internals that this particular use case is achieved. A lot of the examples we will use in this guide will not be producing operating system artifacts (images, root trees, etc), but will be very simple pipelines meant to demonstrate how osbuild operates. After the basics have been covered and understood, it will be easier to understand how a more realistic manifest can be made to create an operating system image.
 
-# The Manifest
+# The manifest
 
 [Principle 4](https://osbuild.org/docs/developer-guide/projects/osbuild/#principles) of osbuild states that "Manifests are expected to be machine-generated, so OSBuild has no convenience functions to support manually created manifests". That said, it's still entirely possible to write simple manifests by hand, they just wont be very interesting. Before we look at a complete manifest, let's first describe the general structure:
 ```json
@@ -595,7 +595,7 @@ This manifest uses two stages we haven't looked at closely yet.
 The first should be self-explanatory and simple to write, so we wont spend more time on it here.
 The second uses `inputs`, which we've talked about but haven't explained much yet.
 
-### Source Inputs
+### Source inputs
 
 Each source type in osbuild creates an artifact of a specific type. The `org.osbuild.inline` and `org.osbuild.curl` sources both create `org.osbuild.files` resources. In osbuild, inputs are a type of module that provide access to a source object for a stage. The exact internal mechanisms are beyond the scope of this guide, but in short, since each stage runs in a sandboxed, hermetic environment, it can only access resources directly from the pipeline it's working on and the inputs provided to that specific stage.
 
@@ -670,7 +670,7 @@ res:            a84f99ff31bda4f4360dc7a93e0fb07c080909eaf4e8a9b3caf6066303c0b082
 
 The exported directory will look like this:
 ```
-› tree output/2
+$ tree output/2
 output/2
 └── res
     └── resources
@@ -697,9 +697,9 @@ curl -s http://localhost:8080/curl-source-file.txt -o "${store}/sources/org.osbu
 echo "SSBhbSBhbiBpbmxpbmUgZmlsZQo=" | base64 -d - > "${store}/sources/org.osbuild.files/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7"
 
 # stages
-mkdir -p "${tree}/resources"
-cp "${store}/sources/org.osbuild.files/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727" "${tree}/resources/curl-file"
-cp "${store}/sources/org.osbuild.files/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7" "${tree}/resources/inline-file"
+mkdir -p "${tree}/resources"  # org.osbuild.mkdir stage
+cp "${store}/sources/org.osbuild.files/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727" "${tree}/resources/curl-file"  # org.osbuild.copy stage
+cp "${store}/sources/org.osbuild.files/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7" "${tree}/resources/inline-file"  # org.osbuild.copy stage
 
 echo "manifest example-2.json finished successfully"
 
@@ -712,3 +712,372 @@ rm -rf "$tree"
 ## The osbuild cache
 
 In the bash script we wrote for the second example, we created `.osbuild` in the working directory. This is the default location for osbuild's working directories and file cache. The location of this directory can be controlled with the `--cache` option (or its alias, `--store`). In the script, we used this to store the sources, both the inline file and the file downloaded using `curl`. This partially mimics the real osbuild store. Artifacts defined in `sources` are stored under `.osbuild/sources/` in subdirectories named after each `input` type they produce (e.g. `org.osbuild.files`, `org.osbuild.containers`, etc). Since `org.osbuild.curl` and `org.osbuild.inline` both produce `org.osbuild.file` artifacts, both files are stored under `.osbuild/sources/org.osbuild.files/`. Files are stored using their sha256 hash, so they are content-addressable. Files under `.osbuild/sources/` are kept after a build is finished, so subsequent builds of any manifest that uses the same files do not need to retrieve these resources again.
+
+## Multi-pipeline manifest
+
+Most useful manifests will use multiple pipelines to produce the desired artifact. As we mentioned in the beginning, a pipeline starts with an empty filesystem tree and modifies it every time a stage is executed. To produce an operating system artifact, we usually want to construct an operating system root tree and then produce a single file, like a disk image or archive that contains that tree. The process for creating such an artifact usually involves at least two pipelines, one that will build the operating system tree and another that will "package" it into the exportable single artifact that contains the tree. To demonstrate this, we'll reuse what we created in the previous examples and add an extra pipeline to create an archive for export.
+
+Let's start by defining a `files` pipeline that will create some files using the stages and sources from the previous manifests:
+```json
+{
+  "version": "2",
+  "pipelines": [
+    {
+      "name": "files",
+      "stages": [
+        {
+          "type": "org.osbuild.truncate",
+          "options": {
+            "filename": "/newfile",
+            "size": "1G"
+          }
+        },
+        {
+          "type": "org.osbuild.chmod",
+          "options": {
+            "items": {
+              "/newfile": {
+                "mode": "0444"
+              }
+            }
+          }
+        },
+        {
+          "type": "org.osbuild.mkdir",
+          "options": {
+            "paths": [
+              {
+                "path": "/resources"
+              }
+            ]
+          }
+        },
+        {
+          "type": "org.osbuild.copy",
+          "options": {
+            "paths": [
+              {
+                "from": "input://inlinefile/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7",
+                "to": "tree:///resources/inline-file"
+              },
+              {
+                "from": "input://curlfile/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727",
+                "to": "tree:///resources/curl-file"
+              }
+            ]
+          },
+          "inputs": {
+            "inlinefile": {
+              "type": "org.osbuild.files",
+              "origin": "org.osbuild.source",
+              "references": [
+                "sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7"
+              ]
+            },
+            "curlfile": {
+              "type": "org.osbuild.files",
+              "origin": "org.osbuild.source",
+              "references": [
+                "sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "org.osbuild.inline": {
+      "items": {
+        "sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7": {
+          "encoding": "base64",
+          "data": "SSBhbSBhbiBpbmxpbmUgZmlsZQo="
+        }
+      }
+    },
+    "org.osbuild.curl": {
+      "items": {
+        "sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727": {
+          "url": "http://localhost:8080/curl-source-file.txt"
+        }
+      }
+    }
+  }
+}
+```
+
+Now we'll add a second pipeline that has only one stage, an `org.osbuild.tar` stage that will take the contents of the first pipeline and create a tar archive. The stage itself looks like this:
+```json
+{
+  "type": "org.osbuild.tar",
+    "options": {
+      "filename": "archive.tar"
+    },
+    "inputs": {
+      "tree": {
+        "type": "org.osbuild.tree",
+        "origin": "org.osbuild.pipeline",
+        "references": [
+          "name:files"
+        ]
+      }
+    }
+}
+```
+
+In the [Source inputs](#source-inputs) section, we mentioned that `origin` takes one of two values. `org.osbuild.pipeline` is used to reference resources created by other pipelines. This is exactly what we are doing here: We are defining the input to the stage to be the output of another pipeline, namely the `files` pipeline, referenced as `name:files`. The `type` of the input is `org.osbuild.tree`, which means that it will be a directory tree, as opposed to `org.osbuild.files` (a single file), which we use for the `org.osbuild.copy` stage.
+
+Putting it all together, the full manifest is as follows:
+```json
+{
+  "version": "2",
+  "pipelines": [
+    {
+      "name": "files",
+      "stages": [
+        {
+          "type": "org.osbuild.truncate",
+          "options": {
+            "filename": "/newfile",
+            "size": "1G"
+          }
+        },
+        {
+          "type": "org.osbuild.chmod",
+          "options": {
+            "items": {
+              "/newfile": {
+                "mode": "0444"
+              }
+            }
+          }
+        },
+        {
+          "type": "org.osbuild.mkdir",
+          "options": {
+            "paths": [
+              {
+                "path": "/resources"
+              }
+            ]
+          }
+        },
+        {
+          "type": "org.osbuild.copy",
+          "options": {
+            "paths": [
+              {
+                "from": "input://inlinefile/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7",
+                "to": "tree:///resources/inline-file"
+              },
+              {
+                "from": "input://curlfile/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727",
+                "to": "tree:///resources/curl-file"
+              }
+            ]
+          },
+          "inputs": {
+            "inlinefile": {
+              "type": "org.osbuild.files",
+              "origin": "org.osbuild.source",
+              "references": [
+                "sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7"
+              ]
+            },
+            "curlfile": {
+              "type": "org.osbuild.files",
+              "origin": "org.osbuild.source",
+              "references": [
+                "sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "archive",
+      "stages": [
+        {
+          "type": "org.osbuild.tar",
+          "options": {
+            "filename": "archive.tar"
+          },
+          "inputs": {
+            "tree": {
+              "type": "org.osbuild.tree",
+              "origin": "org.osbuild.pipeline",
+              "references": [
+                "name:files"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "org.osbuild.inline": {
+      "items": {
+        "sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7": {
+          "encoding": "base64",
+          "data": "SSBhbSBhbiBpbmxpbmUgZmlsZQo="
+        }
+      }
+    },
+    "org.osbuild.curl": {
+      "items": {
+        "sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727": {
+          "url": "http://localhost:8080/curl-source-file.txt"
+        }
+      }
+    }
+  }
+}
+```
+
+Save the new manifest as example-3.json and build it, exporting only the `archive` pipeline.
+```
+$ sudo osbuild --export archive --output-directory output/3 example-3.json
+```
+
+The command output should be:
+```
+starting example-3.json
+Pipeline source org.osbuild.inline: 02340d3c6f6066a404c62d82b7e05ab3ed57262f20743b159798efea27cde6e3
+Build
+  root: <host>
+
+⏱  Duration: 1756035220s
+Pipeline source org.osbuild.curl: 14132afec9fc2e62f13c5850d7bb4a5fb5906277dba9ca0914cfc5ddf8703325
+Build
+  root: <host>
+
+⏱  Duration: 1756035220s
+Pipeline files: 7a83e94e53883bb2e910735f09978ad7c5da804a00ed1ff6f37b45f4031b4973
+Build
+  root: <host>
+  runner: org.osbuild.fedora38 (org.osbuild.fedora38)
+org.osbuild.truncate: cdf6bd2e0d305beac977095697a8ac0cec4d6f744847363081dfb6ad62c389f3 {
+  "filename": "/newfile",
+  "size": "1G"
+}
+/usr/lib/tmpfiles.d/abrt.conf:2: Failed to resolve user 'abrt': No such process
+/usr/lib/tmpfiles.d/abrt.conf:9: Failed to resolve user 'abrt': No such process
+Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
+
+⏱  Duration: 0s
+org.osbuild.chmod: fa0e466784d49682a1b7b3cb129b7a75b16bff9c2aed6aee3f0f1988056ce85a {
+  "items": {
+    "/newfile": {
+      "mode": "0444"
+    }
+  }
+}
+/usr/lib/tmpfiles.d/abrt.conf:2: Failed to resolve user 'abrt': No such process
+/usr/lib/tmpfiles.d/abrt.conf:9: Failed to resolve user 'abrt': No such process
+Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
+
+⏱  Duration: 0s
+org.osbuild.mkdir: e99c13a8fd22be471da3c0691200545571d71a94d7a44c98af1bce804291798c {
+  "paths": [
+    {
+      "path": "/resources"
+    }
+  ]
+}
+/usr/lib/tmpfiles.d/abrt.conf:2: Failed to resolve user 'abrt': No such process
+/usr/lib/tmpfiles.d/abrt.conf:9: Failed to resolve user 'abrt': No such process
+Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
+
+⏱  Duration: 0s
+org.osbuild.copy: 7a83e94e53883bb2e910735f09978ad7c5da804a00ed1ff6f37b45f4031b4973 {
+  "paths": [
+    {
+      "from": "input://inlinefile/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7",
+      "to": "tree:///resources/inline-file"
+    },
+    {
+      "from": "input://curlfile/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727",
+      "to": "tree:///resources/curl-file"
+    }
+  ]
+}
+/usr/lib/tmpfiles.d/abrt.conf:2: Failed to resolve user 'abrt': No such process
+/usr/lib/tmpfiles.d/abrt.conf:9: Failed to resolve user 'abrt': No such process
+Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
+copying '/run/osbuild/inputs/inlinefile/sha256:659c11543b435c1503e4636cd9ad810f5cb99a3cafaf7be12a34e2d026ec33b7' -> '/run/osbuild/tree/resources/inline-file'
+copying '/run/osbuild/inputs/curlfile/sha256:29ddbe330656a28c0cd1f77332464b74146b32765bc9194112fdc0ffdade8727' -> '/run/osbuild/tree/resources/curl-file'
+
+⏱  Duration: 0s
+Pipeline archive: c33c828e0a4636dac83a585118df99c42e148d37699a4d1d595f9e4535652463
+Build
+  root: <host>
+  runner: org.osbuild.fedora38 (org.osbuild.fedora38)
+org.osbuild.tar: c33c828e0a4636dac83a585118df99c42e148d37699a4d1d595f9e4535652463 {
+  "filename": "archive.tar"
+}
+/usr/lib/tmpfiles.d/abrt.conf:2: Failed to resolve user 'abrt': No such process
+/usr/lib/tmpfiles.d/abrt.conf:9: Failed to resolve user 'abrt': No such process
+Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
+
+⏱  Duration: 1s
+manifest example-3.json finished successfully
+files:          7a83e94e53883bb2e910735f09978ad7c5da804a00ed1ff6f37b45f4031b4973
+archive:        c33c828e0a4636dac83a585118df99c42e148d37699a4d1d595f9e4535652463
+```
+and the exported directory:
+```
+$ tree output/3
+output/3
+└── archive
+    └── archive.tar
+
+2 directories, 1 file
+```
+
+The exported file, `archive.tar`, should contain the files created by the `files` pipeline.
+```
+$ tar tf output/3/archive/archive.tar
+./
+./newfile
+./resources/
+./resources/inline-file
+./resources/curl-file
+```
+
+As mentioned before, we can also export the `files` pipeline at the same time if we need to:
+```
+$ sudo osbuild --export files --export archive --output-directory output/3 example-3.json
+```
+which will create the following exported directories:
+```
+$ tree output/3
+output/3
+├── archive
+│   └── archive.tar
+└── files
+    ├── newfile
+    └── resources
+        ├── curl-file
+        └── inline-file
+
+4 directories, 4 files
+```
+
+### Partial manifest builds
+
+Try building `example-3.json` and only export the `files` pipeline. Look closely at the build command output. You will notice that the `org.osbuild.tar` stage is never executed. However, when the `archive` pipeline was exported, the stages in the `files` pipeline were executed. When building a manifest, osbuild will only run the pipelines that are required to produce the pipelines marked for export. It achieves this by building a graph (a DAG, directed acyclic graph, to be precise) of pipeline dependencies. Run `osbuild --inspect example-3.json` and look at the `inputs` of the `org.osbuild.tar` stage. It should look like this:
+```json
+{
+  "tree": {
+    "type": "org.osbuild.tree",
+    "origin": "org.osbuild.pipeline",
+    "references": {
+      "7a83e94e53883bb2e910735f09978ad7c5da804a00ed1ff6f37b45f4031b4973": {}
+    }
+  }
+}
+```
+
+`7a83e94e53883bb2e910735f09978ad7c5da804a00ed1ff6f37b45f4031b4973` is the ID of the last stage of the `files` pipeline, which is also treated as the ID of the pipeline itself. Therefore, when the inputs of the `org.osbuild.tar` stage reference the first pipeline (`name:files`), osbuild marks the `files` pipeline as a dependency of the stage

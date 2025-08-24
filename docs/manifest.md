@@ -1081,3 +1081,227 @@ Try building `example-3.json` and only export the `files` pipeline. Look closely
 ```
 
 `7a83e94e53883bb2e910735f09978ad7c5da804a00ed1ff6f37b45f4031b4973` is the ID of the last stage of the `files` pipeline, which is also treated as the ID of the pipeline itself. Therefore, when the inputs of the `org.osbuild.tar` stage reference the first pipeline (`name:files`), osbuild marks the `files` pipeline as a dependency of the stage and by extension the `archive` pipeline, so any build that requires executing the `archive` pipeline, also requires building the `files` pipeline. Conversely, the `files` pipeline has no dependencies, so when exporting only that pipeline, no other pipeline needs to be built.
+
+## Manifest with devices
+
+The two module types we haven't talked about so far are the `mounts` and `devices`. These are very often used together to manage loop devices and mount partitions in order to create disk images populated with an operating system tree. To demonstrate how they work, we will reuse the manifest from the previous section but instead of producing a tar archive, we will create a formatted disk image.
+
+For simplicity, let's first produce an un-partitioned disk image with a single empty filesystem. We wont worry about putting any files on the disk just yet. So for this section, we will only use `devices` and then we will add `mounts` in our next example.
+
+To start, we'll need a file to serve as our disk image. We already know how to accomplish this, using the first stage we saw in this guide, the `org.osbuild.truncate` stage.
+```json
+{
+  "type": "org.osbuild.truncate",
+  "options": {
+    "filename": "/disk.raw",
+    "size": "1G"
+  }
+}
+```
+We changed the name of the filename to `disk.raw` to reflect its purpose.
+To create a filesystem, we'll need one of the stages that run `mkfs`. Let's use `org.osbuild.mkfs.ext4` to create an `ext4` filesystem. The stage schema looks like this:
+```json
+{
+  "schema_2": {
+    "devices": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "device"
+      ],
+      "properties": {
+        "device": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "options": {
+      "additionalProperties": false,
+      "required": [
+        "uuid"
+      ],
+      "properties": {
+        "uuid": {
+          "description": "Volume identifier",
+          "type": "string"
+        },
+        "label": {
+          "description": "Label for the file system",
+          "type": "string",
+          "maxLength": 16
+        },
+        "lazy_init": {
+          "description": "Enable or disable lazy_itable_init and lazy_journal_init support",
+          "type": "boolean"
+        },
+        "metadata_csum_seed": {
+          "description": "Enable metadata_csum_seed support",
+          "type": "boolean"
+        },
+        "orphan_file": {
+          "description": "Enable orphan_file support",
+          "type": "boolean"
+        },
+        "verity": {
+          "description": "Enable fs-verity support",
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
+```
+We'll ignore the (non-required) stage options here, so we only need to add a UUID to the `options` block. The interesting part for this section is `devices`, which has a single required property called `device`. This means that we need to attach a `device` to the stage and this will be the target for the `mkfs` call. At the time of this writing, osbuild contains three device types:
+- `org.osbuild.loopback`: exposes a file (or part of a file) as a device node.
+- `org.osbuild.lvm2.lv`: activates a logical volume as part of an LVM volume group.
+- `org.osbuild.luks2`: opens a LUKS container to provide access to encrypted devices.
+
+For our simple purposes, we just need a loop device. In its simplest form, the `org.osbuild.loopback` device only requires a file path. So the `devices` part of the `org.osbuild.mkfs.ext4` stage will simply be:
+```json
+{
+  "device": {
+    "type": "org.osbuild.loopback",
+    "options": {
+      "filename": "..."
+    }
+  }
+}
+```
+
+The entire `org.osbuild.mkfs.ext4` stage is as follows:
+```json
+{
+  "type": "org.osbuild.mkfs.ext4",
+  "options": {
+    "uuid": "90f06397-4919-4dc0-aab3-f42d01d2de4f"
+  },
+  "devices": {
+    "device": {
+      "type": "org.osbuild.loopback",
+      "options": {
+        "filename": "/disk.raw"
+      }
+    }
+  }
+}
+```
+The value for `uuid` was generated using `uuidgen`. Any UUID is a valid value. See the section [A note on random values](#a-note-on-random-values) below for an explanation of why this is required.
+The `filename` value under the `org.osbuild.loopback` device matches the filename we set in the `org.osbuild.truncate` stage above.
+
+The complete manifest that produces a formatted disk is:
+```json
+{
+  "version": "2",
+    "pipelines": [
+    {
+      "name": "disk",
+      "stages": [
+        {
+          "type": "org.osbuild.truncate",
+          "options": {
+            "filename": "/disk.raw",
+            "size": "1G"
+          }
+        },
+        {
+          "type": "org.osbuild.mkfs.ext4",
+          "options": {
+            "uuid": "90f06397-4919-4dc0-aab3-f42d01d2de4f"
+          },
+          "devices": {
+            "device": {
+              "type": "org.osbuild.loopback",
+              "options": {
+                "filename": "/disk.raw"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Save this manifest as `example-4.json` and build it, exporting the `disk` pipeline:
+```
+$ sudo osbuild --export disk --output-directory output/4 example-4.json
+```
+
+The command output should look like this:
+```
+starting example-4.json
+Pipeline disk: 9a1ad2ac2aca4ba6511cdc3a031ad14f02e53cd884d3fae2122d2005e5d7651a
+Build
+  root: <host>
+  runner: org.osbuild.fedora38 (org.osbuild.fedora38)
+org.osbuild.truncate: d67e048cbf50ab0f1ff4bdfc77fdc7b08e7aed6706a26f811032fc1b3b85262b {
+  "filename": "/disk.raw",
+  "size": "1G"
+}
+/usr/lib/tmpfiles.d/abrt.conf:2: Failed to resolve user 'abrt': No such process
+/usr/lib/tmpfiles.d/abrt.conf:9: Failed to resolve user 'abrt': No such process
+Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
+
+⏱  Duration: 0s
+org.osbuild.mkfs.ext4: 9a1ad2ac2aca4ba6511cdc3a031ad14f02e53cd884d3fae2122d2005e5d7651a {
+  "uuid": "90f06397-4919-4dc0-aab3-f42d01d2de4f"
+}
+device/device (org.osbuild.loopback): loop0 acquired (locked: False)
+/usr/lib/tmpfiles.d/abrt.conf:2: Failed to resolve user 'abrt': No such process
+/usr/lib/tmpfiles.d/abrt.conf:9: Failed to resolve user 'abrt': No such process
+Failed to open file "/sys/fs/selinux/checkreqprot": Read-only file system
+mke2fs 1.47.2 (1-Jan-2025)
+Discarding device blocks: done
+Creating filesystem with 262144 4k blocks and 65536 inodes
+Filesystem UUID: 90f06397-4919-4dc0-aab3-f42d01d2de4f
+Superblock backups stored on blocks:
+        32768, 98304, 163840, 229376
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (8192 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+
+⏱  Duration: 0s
+manifest example-4.json finished successfully
+disk:           9a1ad2ac2aca4ba6511cdc3a031ad14f02e53cd884d3fae2122d2005e5d7651a
+```
+
+and the exported directory:
+```
+$ tree output/4
+output/4
+└── disk
+    └── disk.raw
+
+2 directories, 1 file
+```
+We can verify that the `disk.raw` file contains an ext4 filesystem with the UUID we chose:
+```
+$ file ./output/4/disk/disk.raw
+./output/4/disk/disk.raw: Linux rev 1.0 ext4 filesystem data, UUID=90f06397-4919-4dc0-aab3-f42d01d2de4f (extents) (64bit) (large files) (huge files)
+```
+and we can also mount it and use it:
+```
+achilleas@Ruby:/scratch/workdirs/manifest-guide
+$ sudo mount ./output/4/disk/disk.raw /mnt
+
+$ df -hT /mnt
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/loop0     ext4  974M  280K  906M   1% /mnt
+```
+
+Note: Don't forget to `umount /mnt` before moving on.
+
+### A note on random values
+
+ Note however that osbuild will never generate this value automatically. This is important for osbuild's [first principle](https://osbuild.org/docs/developer-guide/projects/osbuild/#principles), namely that "The same manifest should always produce the same output". In other words, osbuild stages should never automatically generate random values and should always expect such values to be defined in the manifest. This ensures that manifests are functionally reproducible (however, not always bit-for-bit reproducible).
+
+## Manifest with devices and mounts
+
+Mount modules are used to prepare mounts for stages. Usually, they are used to mount filesystems to a path so that they can be used for writing. Other mount types also exist, such as `org.osbuild.bind`, to bind mount directories to different paths, and `org.osbuild.ostree.deployment`, which sets up all needed bind mounts for a tree to look like an ostree deployment. For this example, we will only use the `org.osbuild.ext4` mount to write files to our ext4-formatted disk image.
+
+To write files to our disk image, we will use an `org.osbuild.copy` stage. The source tree for the stage, the `from` path, will be a pipeline tree that we will define as an input, much like we used for the `org.osbuild.tar` stage in example 3. 

@@ -586,7 +586,7 @@ Putting it all together, we now have our second example manifest, `example-2.jso
 }
 ```
 
-Note: Change any character in the checksum to a different valid hex digit and run the manifest through osbuild to see the data validation failing.
+Note: Change any character in the sha256 checksums to a different valid hex digit and run the manifest through osbuild to see the data validation failing.
 
 This manifest uses two stages we haven't looked at closely yet.
 1. `org.osbuild.mkdir`, which creates directories in the tree, and

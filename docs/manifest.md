@@ -1080,4 +1080,4 @@ Try building `example-3.json` and only export the `files` pipeline. Look closely
 }
 ```
 
-`7a83e94e53883bb2e910735f09978ad7c5da804a00ed1ff6f37b45f4031b4973` is the ID of the last stage of the `files` pipeline, which is also treated as the ID of the pipeline itself. Therefore, when the inputs of the `org.osbuild.tar` stage reference the first pipeline (`name:files`), osbuild marks the `files` pipeline as a dependency of the stage
+`7a83e94e53883bb2e910735f09978ad7c5da804a00ed1ff6f37b45f4031b4973` is the ID of the last stage of the `files` pipeline, which is also treated as the ID of the pipeline itself. Therefore, when the inputs of the `org.osbuild.tar` stage reference the first pipeline (`name:files`), osbuild marks the `files` pipeline as a dependency of the stage and by extension the `archive` pipeline, so any build that requires executing the `archive` pipeline, also requires building the `files` pipeline. Conversely, the `files` pipeline has no dependencies, so when exporting only that pipeline, no other pipeline needs to be built.

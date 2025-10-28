@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/security/limits.d/99-sap.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/security/limits.d/99-sap.conf": "sha256:0a54fe9ceb976a41fb1b4b9ad17f230c84831d718e3d2266c1ff65999f50ab70"
+  },
+  "deleted_files": {},
   "differences": {}
 }

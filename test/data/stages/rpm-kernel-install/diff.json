@@ -1,16 +1,14 @@
 {
-  "added_files": [
-    "/esp",
-    "/esp/EFI",
-    "/esp/EFI/Linux",
-    "/esp/EFI/Linux/ffffffffffffffffffffffffffffffff-6.11.10-300.fc41.x86_64.efi"
-  ],
-  "deleted_files": [
-    "/boot/efi",
-    "/boot/efi/EFI",
-    "/boot/efi/EFI/Linux",
-    "/boot/efi/EFI/Linux/ffffffffffffffffffffffffffffffff-6.11.10-300.fc41.x86_64.efi"
-  ],
+  "added_files": {
+    "/esp": "dir",
+    "/esp/EFI": "dir",
+    "/esp/EFI/Linux": "dir"
+  },
+  "deleted_files": {
+    "/boot/efi": "dir",
+    "/boot/efi/EFI": "dir",
+    "/boot/efi/EFI/Linux": "dir"
+  },
   "differences": {
     "/etc/pki/ca-trust/extracted/java/cacerts": {
       "content": [

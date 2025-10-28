@@ -1,15 +1,13 @@
 {
-  "added_files": [
-    "/etc/systemd/system/ldconfig.service",
-    "/etc/systemd/system/multi-user.target.wants/nftables.service",
-    "/etc/systemd/system/local-fs.target.requires",
-    "/etc/systemd/system/local-fs.target.requires/-.mount",
-    "/etc/systemd/system-generators",
-    "/etc/systemd/system-generators/systemd-sysv-generator",
-    "/usr/lib/systemd/system/-.mount"
-  ],
-  "deleted_files": [
-    "/etc/systemd/system/multi-user.target.wants/sshd.service"
-  ],
+  "added_files": {
+    "/etc/systemd/system-generators": "dir",
+    "/etc/systemd/system/ldconfig.service": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/etc/systemd/system/local-fs.target.requires": "dir",
+    "/etc/systemd/system/multi-user.target.wants/nftables.service": "sha256:deffeef36fe658867dd9203ec13dec85047a6d224ea63334dcf60db97e1809ea",
+    "/usr/lib/systemd/system/-.mount": "sha256:acc42197bb4dd5c1718a744ab9905a609f94bccd611e58e17cc8eb90ef5e601f"
+  },
+  "deleted_files": {
+    "/etc/systemd/system/multi-user.target.wants/sshd.service": "sha256:25aea12c4c7fcc3636cae75b3b3cdb1c1bf513659b1e62b8ed67e02afeefc1b4"
+  },
   "differences": {}
 }

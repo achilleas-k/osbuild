@@ -1,11 +1,10 @@
 {
-  "added_files": [
-    "/usr",
-    "/usr/share",
-    "/usr/share/osbuild",
-    "/usr/share/osbuild/oscap",
-    "/usr/share/osbuild/oscap/tailoring.xml"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/usr": "dir",
+    "/usr/share": "dir",
+    "/usr/share/osbuild": "dir",
+    "/usr/share/osbuild/oscap": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

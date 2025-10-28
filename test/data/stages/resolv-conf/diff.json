@@ -1,8 +1,7 @@
 {
-  "added_files": [
-    "/etc",
-    "/etc/resolv.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

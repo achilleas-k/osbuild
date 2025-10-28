@@ -1,10 +1,10 @@
 {
-  "added_files": [
-    "/etc/.pwd.lock",
-    "/etc/group-",
-    "/etc/gshadow-"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/.pwd.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/etc/group-": "sha256:1664e398cb8dca0e1cbc46668fc906130f54c12fc84c20a8f0229bd7bdf6ac1c",
+    "/etc/gshadow-": "sha256:825bf1abf0aab3239e88a3c37dc1040297266dcf794cb3ac0ab225103d053b60"
+  },
+  "deleted_files": {},
   "differences": {
     "/etc/group": {
       "content": [

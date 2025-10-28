@@ -1,8 +1,8 @@
 {
-  "added_files": [
-    "/usr/lib/sysctl.d/sap.conf",
-    "/usr/lib/sysctl.d/example.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/usr/lib/sysctl.d/example.conf": "sha256:8531b9f4699dc5c9f1fed832d17062259e46a5329da5626ce3a1b666b57fddec",
+    "/usr/lib/sysctl.d/sap.conf": "sha256:f32f5600f583c88f8f4c4ac076a37e32dbcec8b0958611045d9a110eb8ead0f1"
+  },
+  "deleted_files": {},
   "differences": {}
 }

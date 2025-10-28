@@ -1,13 +1,13 @@
 {
-  "added_files": [
-    "/etc/firewalld/firewalld.conf.old",
-    "/etc/firewalld/zones/new-zone.xml",
-    "/etc/firewalld/zones/new-zone.xml.old",
-    "/etc/firewalld/zones/public.xml",
-    "/etc/firewalld/zones/trusted.xml",
-    "/etc/firewalld/zones/trusted.xml.old"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/firewalld/firewalld.conf.old": "sha256:e09ef9813b99b46ebcbabb952674f6e1be46b3aadf573265557d62a7d3a036b5",
+    "/etc/firewalld/zones/new-zone.xml": "sha256:74d07788cf6e3c0e0f1d364368d1228c202f16ca410dbf709ed0e2fb47e8886d",
+    "/etc/firewalld/zones/new-zone.xml.old": "sha256:d4783d5403ba7bef501ddd0a98e8b66ef85b94d72482e8d19b522c7362d934bd",
+    "/etc/firewalld/zones/public.xml": "sha256:31d75ccf2b0c5d431f9f20bb509f2cb5406afbb28ec70baa57c32d25f5ac07ff",
+    "/etc/firewalld/zones/trusted.xml": "sha256:d97d1ac436b17ce42f00683d64b6f15468cdcbf9c0bfd877f095bc7ef62238a3",
+    "/etc/firewalld/zones/trusted.xml.old": "sha256:d97d1ac436b17ce42f00683d64b6f15468cdcbf9c0bfd877f095bc7ef62238a3"
+  },
+  "deleted_files": {},
   "differences": {
     "/etc/firewalld/firewalld.conf": {
       "mode": [

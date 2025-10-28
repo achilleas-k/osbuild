@@ -1,11 +1,11 @@
 {
-  "added_files": [
-    "/a/b",
-    "/b",
-    "/b/c",
-    "/b/c/d",
-    "/i_am_relative"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/a/b": "dir",
+    "/b": "dir",
+    "/b/c": "dir",
+    "/b/c/d": "dir",
+    "/i_am_relative": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

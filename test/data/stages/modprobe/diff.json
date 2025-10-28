@@ -1,9 +1,9 @@
 {
-  "added_files": [
-    "/usr/lib/modprobe.d/disallow-modules.conf",
-    "/usr/lib/modprobe.d/disallow-additional-modules.conf",
-    "/usr/lib/modprobe.d/firewalld-sysctls.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/usr/lib/modprobe.d/disallow-additional-modules.conf": "sha256:689ad107ee2122fb8e37c414fd4e5a6d8ae246649cb102bc361d5fdf3a056fcd",
+    "/usr/lib/modprobe.d/disallow-modules.conf": "sha256:c361a19328c58b4a4a905a68fe607eb5982ddff24c91f80a82cb7f12e4a89512",
+    "/usr/lib/modprobe.d/firewalld-sysctls.conf": "sha256:78c379deadd785c84e393a6e37511ba04622ca7b61c6c9affcb8e5bcd7645528"
+  },
+  "deleted_files": {},
   "differences": {}
 }

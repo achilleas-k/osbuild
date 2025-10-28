@@ -1,17 +1,17 @@
 {
-  "added_files": [],
-  "deleted_files": [],
+  "added_files": {},
+  "deleted_files": {},
   "differences": {
-    "/etc/pki/ca-trust/extracted/java/cacerts": {
-      "content": [
-        null,
-        null
-      ]
-    },
     "/etc/systemd/user/create-directory.service": {
       "content": [
         "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "sha256:81ee5966cdfedee4d43a304e19a4c3655eae4c215f1856f245d137a4982d3601"
+      ]
+    },
+    "/usr/lib/systemd/system/data.mount": {
+      "content": [
+        "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "sha256:2f7e14d9785faa8e9b31188473cb5f87a7bc2a37b31b4c0c533f0e3bfd9d427d"
       ]
     },
     "/usr/lib/systemd/system/dev-disk-by-uuid-4f581be3-e8c2-4b44-9456-54df3ab92944.swap": {
@@ -24,24 +24,6 @@
       "content": [
         "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "sha256:2c029a69c7a57f920c99a3537c8db87b26825436e131a87106e25a69197d7eb6"
-      ]
-    },
-    "/usr/lib/systemd/system/data.mount": {
-      "content": [
-        "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "sha256:2f7e14d9785faa8e9b31188473cb5f87a7bc2a37b31b4c0c533f0e3bfd9d427d"
-      ]
-    },
-    "/usr/lib/sysimage/rpm/rpmdb.sqlite": {
-      "content": [
-        null,
-        null
-      ]
-    },
-    "/var/cache/ldconfig/aux-cache": {
-      "content": [
-        null,
-        null
       ]
     }
   }

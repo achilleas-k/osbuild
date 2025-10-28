@@ -1,11 +1,9 @@
 {
-  "added_files": [
-    "/etc",
-    "/etc/NetworkManager",
-    "/etc/NetworkManager/NetworkManager.conf",
-    "/etc/NetworkManager/conf.d",
-    "/etc/NetworkManager/conf.d/99-unmanaged-devices.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc": "dir",
+    "/etc/NetworkManager": "dir",
+    "/etc/NetworkManager/conf.d": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

@@ -1,9 +1,9 @@
 {
-  "added_files": [
-    "/uncompressed.txt"
-  ],
-  "deleted_files": [
-    "/compressed.gz"
-  ],
+  "added_files": {
+    "/uncompressed.txt": "sha256:f950375066d74787f31cbd8f9f91c71819357cad243fb9d4a0d9ef4fa76709e0"
+  },
+  "deleted_files": {
+    "/compressed.gz": "sha256:45eaf3cc3337a139b4878f6eaddcec2509fa3a4f88fdc03837afce7d0e5d2a52"
+  },
   "differences": {}
 }

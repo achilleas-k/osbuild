@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/archive.img"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/archive.img": "sha256:70b9e76c16d5f3a37ded75a6e0b9fdd153fadc5b80e95cd8550aa8cc0cec78e3"
+  },
+  "deleted_files": {},
   "differences": {}
 }

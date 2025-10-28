@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/locale.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/locale.conf": "sha256:d7573048617bd0e54b56f2de9177cd487bfffe2dafdad1071337070649e8d5d1"
+  },
+  "deleted_files": {},
   "differences": {}
 }

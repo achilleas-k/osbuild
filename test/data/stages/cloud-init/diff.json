@@ -1,10 +1,10 @@
 {
-  "added_files": [
-    "/etc/cloud/cloud.cfg.d/00-default_user.cfg",
-    "/etc/cloud/cloud.cfg.d/06_logging_override.cfg",
-    "/etc/cloud/cloud.cfg.d/10-azure-kfp.cfg",
-    "/etc/cloud/cloud.cfg.d/91-azure_datasource.cfg"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/cloud/cloud.cfg.d/00-default_user.cfg": "sha256:6b040c5df81f193a50e86e73b61afe73f21e4da33c0a4542a7c89048018ab902",
+    "/etc/cloud/cloud.cfg.d/06_logging_override.cfg": "sha256:b2127b1a35d02506f58eea5e310afbe34da031ca8e5b6dc9c6268cb6911bfe23",
+    "/etc/cloud/cloud.cfg.d/10-azure-kfp.cfg": "sha256:79e0370c010be5cd4717960e4b414570c9ec6e6d29aede77ccecc43d2b03bb9a",
+    "/etc/cloud/cloud.cfg.d/91-azure_datasource.cfg": "sha256:2d6763712510f4b3d50729e826d69da60fd5421e680b131128aeb2f7280ca137"
+  },
+  "deleted_files": {},
   "differences": {}
 }

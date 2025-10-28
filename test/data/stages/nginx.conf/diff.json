@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/nginx-test.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/nginx-test.conf": "sha256:abb627baf87a4e3322464bfe992926c90262b53567a16e47e58a7168c5a135b6"
+  },
+  "deleted_files": {},
   "differences": {}
 }

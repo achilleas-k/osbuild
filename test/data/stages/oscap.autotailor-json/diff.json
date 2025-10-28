@@ -1,12 +1,11 @@
 {
-  "added_files": [
-    "/json-tailoring.json",
-    "/usr",
-    "/usr/share",
-    "/usr/share/osbuild",
-    "/usr/share/osbuild/oscap",
-    "/usr/share/osbuild/oscap/tailoring.xml"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/json-tailoring.json": "sha256:aee34ee1a4cfc9a23c2efa7f15e45f6ca9a85957559df158d18a0418248f093a",
+    "/usr": "dir",
+    "/usr/share": "dir",
+    "/usr/share/osbuild": "dir",
+    "/usr/share/osbuild/oscap": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

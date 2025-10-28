@@ -1,10 +1,9 @@
 {
-  "added_files": [
-    "/etc/yum.conf",
-    "/etc/yum",
-    "/etc/yum/pluginconf.d",
-    "/etc/yum/pluginconf.d/langpacks.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/yum": "dir",
+    "/etc/yum.conf": "sha256:b08a1e1d01df7348c7d2449b452ebceefe1cc97dd4608e18b16ef7aa0db27517",
+    "/etc/yum/pluginconf.d": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

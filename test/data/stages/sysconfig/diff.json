@@ -1,23 +1,21 @@
 {
-  "added_files": [
-    "/etc/sysconfig/network-scripts",
-    "/etc/sysconfig/network-scripts/ifcfg-eth0",
-    "/etc/sysconfig/network-scripts/ifcfg-eth1",
-    "/etc/sysconfig/desktop",
-    "/etc/sysconfig/livesys"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/sysconfig/desktop": "sha256:9174439eb5d28fce4cb5f9f71e4f6eda78509ca01556ac332ce80919c2adbd9e",
+    "/etc/sysconfig/livesys": "sha256:3134d7e0111ac6465501e287ea81c60b294f42338be48a02591d6d79e1a7e3c3",
+    "/etc/sysconfig/network-scripts": "dir"
+  },
+  "deleted_files": {},
   "differences": {
-    "/etc/sysconfig/network": {
-      "content": [
-        "sha256:05823c747729a65a07859f6b4dbd8107c0f109eb63966f65b75dc64e76c651db",
-        "sha256:75cf7fcd56aa910091036df4f6dc0493716ea556307e09f2bff5ba88597e2755"
-      ]
-    },
     "/etc/sysconfig/kernel": {
       "content": [
         "sha256:c06a6223f5eb10dca37f20b6afdd7c4d0bed309e7588990bad3e10feeb20887b",
         "sha256:e5c145573d93461b44f5303d83577e44bc4d093f2271f3da2e8e094a243f10ef"
+      ]
+    },
+    "/etc/sysconfig/network": {
+      "content": [
+        "sha256:05823c747729a65a07859f6b4dbd8107c0f109eb63966f65b75dc64e76c651db",
+        "sha256:75cf7fcd56aa910091036df4f6dc0493716ea556307e09f2bff5ba88597e2755"
       ]
     }
   }

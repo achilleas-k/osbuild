@@ -1,8 +1,8 @@
 {
-  "added_files": [
-    "/etc/profile.d/test_env",
-    "/etc/profile.d/test_env.2"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/profile.d/test_env": "sha256:cf3d67b9c60b18872e78f1cf84a77a39839661cff1807026a9dd9632c0eb0ff8",
+    "/etc/profile.d/test_env.2": "sha256:4ab2d5cdce4bc6ca9bd621181518846ee26ab6ed3b3776c779e17b3142d4ff2d"
+  },
+  "deleted_files": {},
   "differences": {}
 }

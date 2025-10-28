@@ -1,0 +1,10 @@
+{
+  "added_files": {
+    "/usr": "dir",
+    "/usr/lib": "dir",
+    "/usr/lib/sysimage": "dir",
+    "/usr/lib/sysimage/rpm": "dir"
+  },
+  "deleted_files": {},
+  "differences": {}
+}

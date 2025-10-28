@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/root/image.spdx.json"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/root/image.spdx.json": "sha256:b4248ff874d1dcb292973e9d2b6f4c1607e4c4c362a04070ffe9158760cfe39b"
+  },
+  "deleted_files": {},
   "differences": {}
 }

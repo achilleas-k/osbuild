@@ -1,8 +1,7 @@
 {
-  "added_files": [
-    "/kickstart",
-    "/kickstart/ks.cfg"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/kickstart": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

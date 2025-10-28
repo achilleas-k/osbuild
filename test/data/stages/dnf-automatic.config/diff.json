@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/dnf/automatic.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/dnf/automatic.conf": "sha256:98461a9915878b0fd6f073b27a2e6ff238cbf18c1a107ef66b1b64f17383b231"
+  },
+  "deleted_files": {},
   "differences": {}
 }

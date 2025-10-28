@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/compressed.xz"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/compressed.xz": "sha256:1b17c20d7cea9974ec2a4ec41a565a52dc3ff79c51400c5be01a9c36d9d10198"
+  },
+  "deleted_files": {},
   "differences": {}
 }

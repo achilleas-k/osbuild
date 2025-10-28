@@ -1,9 +1,8 @@
 {
-  "added_files": [
-    "/etc/rhsm",
-    "/etc/rhsm/facts",
-    "/etc/rhsm/facts/osbuild.facts"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/rhsm": "dir",
+    "/etc/rhsm/facts": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

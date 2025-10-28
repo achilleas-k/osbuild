@@ -1,9 +1,8 @@
 {
-  "added_files": [
-    "/etc/X11/xorg.conf.d",
-    "/etc/X11/xorg.conf.d/00-keyboard.conf",
-    "/etc/vconsole.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/X11/xorg.conf.d": "dir",
+    "/etc/vconsole.conf": "sha256:2b509255850569d5be8a66538a14bbbf642204b8f3260157aec976fcb1f9bafe"
+  },
+  "deleted_files": {},
   "differences": {}
 }

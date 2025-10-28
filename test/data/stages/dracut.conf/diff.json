@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/usr/lib/dracut/dracut.conf.d/sgdisk.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/usr/lib/dracut/dracut.conf.d/sgdisk.conf": "sha256:efaf3995fc89f26f04a3fe4cf6ce210e979687315ca6b2628af9412b4a1eca83"
+  },
+  "deleted_files": {},
   "differences": {}
 }

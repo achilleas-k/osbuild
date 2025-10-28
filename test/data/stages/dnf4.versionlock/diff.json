@@ -1,6 +1,6 @@
 {
-  "added_files": [],
-  "deleted_files": [],
+  "added_files": {},
+  "deleted_files": {},
   "differences": {
     "/etc/dnf/plugins/versionlock.list": {
       "content": [

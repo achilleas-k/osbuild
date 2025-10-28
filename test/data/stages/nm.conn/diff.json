@@ -1,15 +1,13 @@
 {
-  "added_files": [
-    "/etc",
-    "/etc/NetworkManager",
-    "/etc/NetworkManager/system-connections",
-    "/etc/NetworkManager/system-connections/test.conf",
-    "/usr",
-    "/usr/lib",
-    "/usr/lib/NetworkManager",
-    "/usr/lib/NetworkManager/system-connections",
-    "/usr/lib/NetworkManager/system-connections/osbuild.nmconnection"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc": "dir",
+    "/etc/NetworkManager": "dir",
+    "/etc/NetworkManager/system-connections": "dir",
+    "/usr": "dir",
+    "/usr/lib": "dir",
+    "/usr/lib/NetworkManager": "dir",
+    "/usr/lib/NetworkManager/system-connections": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

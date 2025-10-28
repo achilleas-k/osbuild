@@ -1,10 +1,9 @@
 {
-  "added_files": [
-    "/etc/sysusers.d",
-    "/etc/sysusers.d/new-etc.conf",
-    "/usr/lib/sysusers.d/new.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/sysusers.d": "dir",
+    "/usr/lib/sysusers.d/new.conf": "sha256:e81c3926ded592e463c23ae93aa557749daefd1c5d474686deb6fdca851cdb26"
+  },
+  "deleted_files": {},
   "differences": {
     "/etc/group": {
       "content": [

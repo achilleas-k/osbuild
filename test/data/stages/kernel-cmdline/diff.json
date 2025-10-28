@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/kernel/cmdline"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/kernel/cmdline": "sha256:f8636596eb6b9046fa1578df931790da5a8f6a8630749e3616c2d9adf45f9633"
+  },
+  "deleted_files": {},
   "differences": {}
 }

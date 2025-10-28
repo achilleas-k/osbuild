@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/wsl.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/wsl.conf": "sha256:f7cbf6a85cf5f931864ea7a037f688f89319fcd38ab0d2b9f38f9cc7498d739d"
+  },
+  "deleted_files": {},
   "differences": {}
 }

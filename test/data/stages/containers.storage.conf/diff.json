@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/containers/storage.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/containers/storage.conf": "sha256:3cbcd4958962c89b944381b47cfb57885643e32cf52311841f5a619082f76f71"
+  },
+  "deleted_files": {},
   "differences": {}
 }

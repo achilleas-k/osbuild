@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/sysconfig/livesys"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/sysconfig/livesys": "sha256:a92dc72b538bb7c4c6f2d6ae6b79415080e3e96bc29cbf3c3797f456cf3ddf59"
+  },
+  "deleted_files": {},
   "differences": {}
 }

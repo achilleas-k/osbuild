@@ -1,9 +1,8 @@
 {
-  "added_files": [
-    "/etc",
-    "/etc/rpm",
-    "/etc/rpm/macros.image-language-conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc": "dir",
+    "/etc/rpm": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

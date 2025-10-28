@@ -1,11 +1,9 @@
 {
-  "added_files": [
-    "/hello",
-    "/hello/world.txt",
-    "/test",
-    "/test/hello",
-    "/test/hello/world.txt"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/hello": "dir",
+    "/test": "dir",
+    "/test/hello": "dir"
+  },
+  "deleted_files": {},
   "differences": {}
 }

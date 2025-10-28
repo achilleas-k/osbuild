@@ -1,8 +1,8 @@
 {
-  "added_files": [
-    "/.greet1.txt.hmac",
-    "/.greet2.txt.hmac"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/.greet1.txt.hmac": "sha256:fbfcb1d342fd349faf3f94f335c064d628e12b9a02b6cd9f153f3ca6689643f3",
+    "/.greet2.txt.hmac": "sha256:04e97eee1865ea0cf8442c4585d3ab7700342b86f3cc69d5e34bc328c8656381"
+  },
+  "deleted_files": {},
   "differences": {}
 }

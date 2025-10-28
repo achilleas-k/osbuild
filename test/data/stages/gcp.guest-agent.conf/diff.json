@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/default/instance_configs.cfg.distro"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/default/instance_configs.cfg.distro": "sha256:1fb9177e3e5dd3ecb40c6a8123c90970afd73ff2ad96409ffb92afae842f8d70"
+  },
+  "deleted_files": {},
   "differences": {}
 }

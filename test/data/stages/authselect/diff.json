@@ -1,6 +1,6 @@
 {
-  "added_files": [],
-  "deleted_files": [],
+  "added_files": {},
+  "deleted_files": {},
   "differences": {
     "/etc/authselect/authselect.conf": {
       "content": [

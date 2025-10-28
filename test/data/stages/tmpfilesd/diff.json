@@ -1,8 +1,8 @@
 {
-  "added_files": [
-    "/usr/lib/tmpfiles.d/sap.conf",
-    "/usr/lib/tmpfiles.d/example.conf"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/usr/lib/tmpfiles.d/example.conf": "sha256:0eee91f0c1f271f5cd20b4a22a38e920dc0104e1600d427fba7069a9d05a6a19",
+    "/usr/lib/tmpfiles.d/sap.conf": "sha256:c8d6d978a8df897a8ec60d813da52279f299519b850893fa195a948add8e0d13"
+  },
+  "deleted_files": {},
   "differences": {}
 }

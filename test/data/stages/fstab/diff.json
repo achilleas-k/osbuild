@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/fstab"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/fstab": "sha256:ba794da3927ebb1255a9c3efdbc668a45f11509365efc5fae284adf8b86d3b14"
+  },
+  "deleted_files": {},
   "differences": {}
 }

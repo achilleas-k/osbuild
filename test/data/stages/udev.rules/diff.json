@@ -1,8 +1,8 @@
 {
-  "added_files": [
-    "/etc/udev/rules.d/68-azure-sriov-nm-unmanaged.rules",
-    "/etc/udev/rules.d/osbuild.rules"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/udev/rules.d/68-azure-sriov-nm-unmanaged.rules": "sha256:f5017e6d690b2dee97432e7ab9d67473536cb6aa62cdc2db7fefc850a552927a",
+    "/etc/udev/rules.d/osbuild.rules": "sha256:76fa0b1d18dab9c84e5930287d7437812ee77834468c18fd41debcef006ba389"
+  },
+  "deleted_files": {},
   "differences": {}
 }

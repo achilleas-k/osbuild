@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/etc/hostname"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/etc/hostname": "sha256:7bb329fd51ea202929ad35436dee8a1577dcb9fda527659ed712cf1dfca8ffa5"
+  },
+  "deleted_files": {},
   "differences": {}
 }

@@ -1,7 +1,7 @@
 {
-  "added_files": [
-    "/compressed.zstd"
-  ],
-  "deleted_files": [],
+  "added_files": {
+    "/compressed.zstd": "sha256:32fdba9f2dcd02f663adf58e0238e8fb738ebba17cec0365d016c6e405828eda"
+  },
+  "deleted_files": {},
   "differences": {}
 }

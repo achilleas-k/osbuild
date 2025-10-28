@@ -100,13 +100,20 @@ def diff_aux(dir_fd1, dir_fd2, path, report):
             try:
                 stat2 = os.stat(dirent.name, dir_fd=dir_fd2, follow_symlinks=False)
             except FileNotFoundError:
-                report["deleted_files"] += [os.path.join(path, dirent.name)]
                 if dirent.is_dir(follow_symlinks=False):
+                    report["deleted_files"][os.path.join(path, dirent.name)] = "dir"
                     try:
                         child_fd = os.open(dirent.name, os.O_DIRECTORY, dir_fd=dir_fd1)
                     except OSError:
                         continue
                     list_dir(child_fd, os.path.join(path, dirent.name), report["deleted_files"])
+                    os.close(child_fd)
+                else:
+                    try:
+                        child_fd = os.open(dirent.name, os.O_RDONLY, dir_fd=dir_fd1)
+                    except OSError:
+                        continue
+                    report["deleted_files"][os.path.join(path, dirent.name)] = hash_file(child_fd)
                     os.close(child_fd)
                 continue
             entries1.add(dirent.name)
@@ -148,13 +155,20 @@ def diff_aux(dir_fd1, dir_fd2, path, report):
     with os.scandir(f"/proc/self/fd/{dir_fd2}") as it:
         for dirent in it:
             if dirent.name not in entries1:
-                report["added_files"] += [os.path.join(path, dirent.name)]
                 if dirent.is_dir(follow_symlinks=False):
+                    report["added_files"][os.path.join(path, dirent.name)] = "dir"
                     try:
                         child_fd = os.open(dirent.name, os.O_DIRECTORY, dir_fd=dir_fd2)
                     except OSError:
                         continue
                     list_dir(child_fd, os.path.join(path, dirent.name), report["added_files"])
+                    os.close(child_fd)
+                else:
+                    try:
+                        child_fd = os.open(dirent.name, os.O_RDONLY, dir_fd=dir_fd2)
+                    except OSError:
+                        continue
+                    report["added_files"][os.path.join(path, dirent.name)] = hash_file(child_fd)
                     os.close(child_fd)
 
 
@@ -166,17 +180,17 @@ def diff(dir_fd1, dir_fd2, report):
     diff_aux(dir_fd1, dir_fd2, "/", report)
 
 
-def list_dir(dir_fd, path, target_list):
+def list_dir(dir_fd, path, target_dict):
     with os.scandir(f"/proc/self/fd/{dir_fd}") as it:
         for dirent in it:
             p = os.path.join(path, dirent.name)
-            target_list.append(p)
             if dirent.is_dir(follow_symlinks=False):
+                target_dict[p] = "dir"
                 try:
                     child_fd = os.open(dirent.name, os.O_DIRECTORY, dir_fd=dir_fd)
                 except OSError:
                     continue
-                list_dir(child_fd, p, target_list)
+                list_dir(child_fd, p, target_dict)
                 os.close(child_fd)
 
 
@@ -188,19 +202,17 @@ def main():
                         help="second directory to compare")
     args = parser.parse_args()
 
-    report = {}
-    report["added_files"] = []
-    report["deleted_files"] = []
-    report["differences"] = {}
+    report = {
+        "added_files": {},
+        "deleted_files": {},
+        "differences": {},
+    }
 
     dir_fd1 = os.open(args.dir1, os.O_DIRECTORY)
     dir_fd2 = os.open(args.dir2, os.O_DIRECTORY)
     diff(dir_fd1, dir_fd2, report)
     os.close(dir_fd2)
     os.close(dir_fd1)
-
-    report["added_files"].sort()
-    report["deleted_files"].sort()
 
     print(json.dumps(report, indent=2, sort_keys=True))
 

@@ -163,7 +163,7 @@ def diff_aux(dir_fd1, dir_fd2, path, report):
                         continue
                     list_dir(child_fd, os.path.join(path, dirent.name), report["added_files"])
                     os.close(child_fd)
-                else:
+                elif dirent.is_file(follow_symlinks=False):
                     try:
                         child_fd = os.open(dirent.name, os.O_RDONLY, dir_fd=dir_fd2)
                     except OSError:
